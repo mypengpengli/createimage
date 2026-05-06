@@ -28,13 +28,13 @@ python -m http.server 5200
 
 接口地址可以填根地址或带 `/v1` 的地址，前端会自动规整成根地址后再请求 `/v1/...`。
 
-Qwen 图片模型会使用 NVIDIA 更兼容的参数格式，只发送 `model`、`prompt`、`n`、`response_format` 等必要字段，不额外发送 OpenAI `gpt-image-2` 的 `quality/size` 参数。
+Qwen 图片模型会按硅基流动接口格式请求：`Qwen/Qwen-Image` 走 `/v1/images/generations`，并使用硅基推荐的 `image_size` 参数。
 
 硅基流动的图片返回可能是 `images[0].url`，页面已兼容该格式。
 
 硅基流动的 `Qwen/Qwen-Image-Edit` 使用 `/v1/images/generations`，请求体里的图片字段为 JSON `image`，不是 OpenAI 的 multipart `/v1/images/edits`；页面已按该格式处理。若你的中转仍返回 400，请在 New API 渠道里同时加入硅基文档示例模型 `Qwen/Qwen-Image-Edit-2509` 再测试。
 
-`文生图通道` 默认经过你的 New API。只有明确选择 `NVIDIA 原生直连` 并填写单独的 NVIDIA Key 时，前端才会直接请求 `https://ai.api.nvidia.com`。如果希望所有请求都经过你的中转站，请保持 `自动匹配（走 New API）` 或 `OpenAI 兼容 / New API`。
+所有请求默认都经过你的 New API 中转站，不包含第三方直连配置。
 
 ## Docker 部署
 

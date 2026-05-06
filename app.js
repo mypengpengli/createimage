@@ -1,7 +1,6 @@
 ﻿/* ImageForge Studio — App Logic (Extended) */
 
 const DEFAULT_API_BASE = 'https://apichat.jiazhuangai.com';
-const DEFAULT_NVIDIA_API_BASE = 'https://ai.api.nvidia.com';
 const DEFAULT_GENERATION_MODEL = 'gpt-image-2';
 const DEFAULT_EDIT_MODEL = 'gpt-image-2';
 const DB_NAME = 'imageforge';
@@ -37,27 +36,10 @@ function checkFirstRun() { const cfg = getConfig(); if (!cfg.apiKey) setTimeout(
 function updateEndpointIndicator() { const cfg = getConfig(); const el = document.getElementById('endpoint-indicator'); if (!el) return; el.textContent = cfg.apiKey ? `已连接 ${cfg.apiBase.replace(/^https?:\/\//, '')}` : '未配置密钥'; el.className = 'endpoint-indicator' + (cfg.apiKey ? ' configured' : ' unconfigured'); }
 function friendlyError(err) { const msg = err.message || String(err); if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return '网络错误：无法连接到服务。'; if (msg.includes('CORS')) return '跨域错误 (CORS)'; return msg; }
 function normalizeApiBase(value) { return (value || DEFAULT_API_BASE).trim().replace(/\/+$/, '').replace(/\/v1$/i, ''); }
-function normalizeNvidiaApiBase(value) { return (value || DEFAULT_NVIDIA_API_BASE).trim().replace(/\/+$/, '').replace(/\/v1(?:\/genai)?$/i, ''); }
 function apiUrl(path) { return `${getConfig().apiBase}${path}`; }
 function isQwenImageModel(model) { return /^qwen\/qwen-image/i.test(model || '') || /^qwen-image/i.test(model || ''); }
 function isQwenImageEditModel(model) { return /^qwen\/qwen-image-edit/i.test(model || '') || /^qwen-image-edit/i.test(model || ''); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
-function isNvidiaNativeImageModel(model) { return /^black-forest-labs\/flux[._]2-klein-4b$/i.test(model || ''); }
-function nvidiaNativeModelPath(model) { return String(model || '').replace('flux_2', 'flux.2'); }
-function shouldUseNvidiaNativeGeneration(cfg, model) {
-  return cfg.generationProvider === 'nvidia-native';
-}
-function getNvidiaNativeKey(cfg) { return cfg.nvidiaApiKey; }
-function nvidiaNativeGenerationUrl(cfg, model) { return `${cfg.nvidiaApiBase}/v1/genai/${nvidiaNativeModelPath(model)}`; }
-function getSizeDimensions(sizeSpec) {
-  const spec = sizeSpec || makeSizeSpecFromApiSize('1024x1024');
-  const m = String(spec.apiSize || '1024x1024').match(/^(\d+)x(\d+)$/);
-  return m ? { width: Number(m[1]), height: Number(m[2]) } : { width: 1024, height: 1024 };
-}
-function buildNvidiaNativeGenerationBody(prompt, sizeSpec) {
-  const dims = getSizeDimensions(sizeSpec);
-  return { prompt, width: dims.width, height: dims.height, samples: 1, seed: Math.floor(Math.random() * 2147483647) };
-}
 function getQwenImageSize(sizeSpec) {
   const ratio = parseRatio(sizeSpec?.ratio || '1:1');
   if (ratio > 1.7) return '1664x928';
@@ -122,9 +104,9 @@ function deleteFromHistory(id) { return new Promise(res => { const tx = db.trans
 function clearAllHistory() { return new Promise(res => { const tx = db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).clear(); tx.oncomplete = () => { refreshHistory(); res(); }; }); }
 
 // ===== Settings =====
-function getConfig() { const legacyModel = localStorage.getItem('if_image_model') || ''; return { apiBase: normalizeApiBase(localStorage.getItem('if_api_base') || DEFAULT_API_BASE), nvidiaApiBase: normalizeNvidiaApiBase(localStorage.getItem('if_nvidia_api_base') || DEFAULT_NVIDIA_API_BASE), apiKey: localStorage.getItem('if_apikey') || '', nvidiaApiKey: localStorage.getItem('if_nvidia_apikey') || '', generationProvider: localStorage.getItem('if_generation_provider') || 'auto', generationModel: localStorage.getItem('if_generation_model') || legacyModel || DEFAULT_GENERATION_MODEL, editModel: localStorage.getItem('if_edit_model') || legacyModel || DEFAULT_EDIT_MODEL, polishModel: localStorage.getItem('if_polish_model') || '' }; }
-function loadSettings() { const c = getConfig(); const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gp = document.getElementById('setting-generation-provider'); const nb = document.getElementById('setting-nvidia-api-base'); const nk = document.getElementById('setting-nvidia-apikey'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) k.value = c.apiKey; if (b) b.value = c.apiBase; if (gp) gp.value = c.generationProvider; if (nb) nb.value = c.nvidiaApiBase; if (nk) nk.value = c.nvidiaApiKey; if (gm) gm.value = c.generationModel; if (em) em.value = c.editModel; if (m) m.value = c.polishModel; }
-function saveSettings() { const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gp = document.getElementById('setting-generation-provider'); const nb = document.getElementById('setting-nvidia-api-base'); const nk = document.getElementById('setting-nvidia-apikey'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) localStorage.setItem('if_apikey', k.value.trim()); if (b) localStorage.setItem('if_api_base', normalizeApiBase(b.value)); if (gp) localStorage.setItem('if_generation_provider', gp.value || 'auto'); if (nb) localStorage.setItem('if_nvidia_api_base', normalizeNvidiaApiBase(nb.value)); if (nk) localStorage.setItem('if_nvidia_apikey', nk.value.trim()); if (gm) localStorage.setItem('if_generation_model', gm.value.trim() || DEFAULT_GENERATION_MODEL); if (em) localStorage.setItem('if_edit_model', em.value.trim() || DEFAULT_EDIT_MODEL); if (m) localStorage.setItem('if_polish_model', m.value.trim()); closeSettings(); updateEndpointIndicator(); showToast('配置已保存'); }
+function getConfig() { const legacyModel = localStorage.getItem('if_image_model') || ''; return { apiBase: normalizeApiBase(localStorage.getItem('if_api_base') || DEFAULT_API_BASE), apiKey: localStorage.getItem('if_apikey') || '', generationModel: localStorage.getItem('if_generation_model') || legacyModel || DEFAULT_GENERATION_MODEL, editModel: localStorage.getItem('if_edit_model') || legacyModel || DEFAULT_EDIT_MODEL, polishModel: localStorage.getItem('if_polish_model') || '' }; }
+function loadSettings() { const c = getConfig(); const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) k.value = c.apiKey; if (b) b.value = c.apiBase; if (gm) gm.value = c.generationModel; if (em) em.value = c.editModel; if (m) m.value = c.polishModel; }
+function saveSettings() { const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) localStorage.setItem('if_apikey', k.value.trim()); if (b) localStorage.setItem('if_api_base', normalizeApiBase(b.value)); if (gm) localStorage.setItem('if_generation_model', gm.value.trim() || DEFAULT_GENERATION_MODEL); if (em) localStorage.setItem('if_edit_model', em.value.trim() || DEFAULT_EDIT_MODEL); if (m) localStorage.setItem('if_polish_model', m.value.trim()); closeSettings(); updateEndpointIndicator(); showToast('配置已保存'); }
 function openSettings() { loadSettings(); document.getElementById('settings-modal').style.display = 'flex'; }
 function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
 function closeSettingsOutside(e) { if (e.target === e.currentTarget) closeSettings(); }
@@ -424,24 +406,13 @@ async function generateNew(tab) {
         }).then(async r => { if (!r.ok) { const t = await r.text(); throw new Error(parseApiError(t, r.status)); } return r.json(); }));
       } else {
         if (!fullPrompt) throw new Error('请输入描述或上传图片');
-        if (shouldUseNvidiaNativeGeneration(cfg, requestModel)) {
-          const nativeKey = getNvidiaNativeKey(cfg);
-          if (!nativeKey) throw new Error('请先配置 NVIDIA Key，或把文生图通道改回 OpenAI 兼容 / New API');
-          const body = buildNvidiaNativeGenerationBody(fullPrompt, size);
-          tasks.push(fetch(nvidiaNativeGenerationUrl(cfg, requestModel), {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${nativeKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(body)
-          }).then(async r => { if (!r.ok) { const t = await r.text(); throw new Error(parseApiError(t, r.status)); } return r.json(); }));
-        } else {
-          const body = { prompt: fullPrompt, model: requestModel, n: 1 };
-          appendImageRequestOptions(body, size, quality, requestModel);
-          tasks.push(fetch(apiUrl('/v1/images/generations'), {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          }).then(async r => { if (!r.ok) { const t = await r.text(); throw new Error(parseApiError(t, r.status)); } return r.json(); }));
-        }
+        const body = { prompt: fullPrompt, model: requestModel, n: 1 };
+        appendImageRequestOptions(body, size, quality, requestModel);
+        tasks.push(fetch(apiUrl('/v1/images/generations'), {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }).then(async r => { if (!r.ok) { const t = await r.text(); throw new Error(parseApiError(t, r.status)); } return r.json(); }));
       }
     }
 
