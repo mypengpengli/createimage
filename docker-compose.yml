@@ -1,0 +1,7 @@
+services:
+  imageforge:
+    build: .
+    container_name: imageforge-studio
+    restart: unless-stopped
+    ports:
+      - "520:80"

@@ -1,0 +1,746 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ImageForge Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <div class="logo-mark">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="8" fill="#111"/>
+            <path d="M8 16L13 11L18 16L13 21Z" fill="white" opacity="0.95"/>
+            <path d="M13 11L18 16L23 11L18 6Z" fill="white" opacity="0.55"/>
+            <path d="M13 21L18 16L23 21L18 26Z" fill="white" opacity="0.55"/>
+          </svg>
+        </div>
+        <div class="logo-text-group">
+          <span class="logo-text">ImageForge</span>
+          <span class="logo-badge">STUDIO</span>
+        </div>
+      </div>
+    </div>
+    <nav class="topbar-nav">
+      <button class="nav-btn active" data-tab="product" onclick="switchTab('product')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        全品类商品图
+      </button>
+      <button class="nav-btn" data-tab="style" onclick="switchTab('style')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        风格复刻
+      </button>
+      <button class="nav-btn" data-tab="clothing" onclick="switchTab('clothing')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 2L2 6l3 1v13h14V7l3-1-4.5-4h-4L12 4l-1.5-2z"/></svg>
+        服装组图
+      </button>
+      <button class="nav-btn" data-tab="refine" onclick="switchTab('refine')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 3 2 2 0 01-3 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-3-3l.06-.06A1.65 1.65 0 004.68 15"/></svg>
+        图片精修
+      </button>
+      <button class="nav-btn" data-tab="generate" onclick="switchTab('generate')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
+        生成
+      </button>
+      <button class="nav-btn" data-tab="edit" onclick="switchTab('edit')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        编辑
+      </button>
+      <button class="nav-btn" data-tab="cases" onclick="switchTab('cases')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        案例专区
+      </button>
+      <button class="nav-btn" data-tab="history" onclick="switchTab('history')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        历史
+      </button>
+    </nav>
+    <div class="topbar-right">
+      <div class="kbd-hint">Ctrl+Enter 生成</div>
+      <button class="settings-btn" onclick="openSettings()" title="API 设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="main-content">
+    <!-- ===== 全品类商品图 ===== -->
+    <section id="tab-product" class="tab-panel active">
+      <div class="generate-layout">
+        <aside class="control-panel">
+          <div class="panel-brand"><span class="panel-brand-icon">📦</span><span>全品类商品图</span></div>
+          <div class="panel-section">
+            <label class="field-label">产品图</label>
+            <div class="upload-zone" onclick="document.getElementById('product-file-input').click()">
+              <input type="file" id="product-file-input" accept="image/*" multiple style="display:none" onchange="handleMultiUpload(event,'product')">
+              <div class="upload-placeholder" id="product-placeholder">
+                <div class="upload-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                <span class="upload-text">上传清晰的产品图片</span>
+                <span class="upload-hint">支持多张上传 (0/6)</span>
+              </div>
+              <div id="product-previews" class="multi-previews" style="display:none"></div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">图片类型</label>
+            <div class="quality-toggle">
+              <button class="quality-btn active" onclick="toggleBtn(this)"><span class="q-label">主图</span></button>
+              <button class="quality-btn" onclick="toggleBtn(this)"><span class="q-label">详情图</span></button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">目标平台</label>
+            <div class="select-wrap"><select id="product-platform" class="select-input">
+              <option value="auto">智能匹配</option>
+              <option value="amazon">Amazon</option>
+              <option value="shopify">Shopify</option>
+              <option value="taobao">淘宝/天猫</option>
+              <option value="tmall">天猫</option>
+              <option value="jd">京东</option>
+              <option value="pdd">拼多多</option>
+              <option value="douyin">抖音电商</option>
+              <option value="kuaishou">快手小店</option>
+              <option value="xiaohongshu">小红书</option>
+              <option value="wechat">微信小店/视频号</option>
+              <option value="1688">1688 批发</option>
+              <option value="alibaba">Alibaba 国际站</option>
+              <option value="aliexpress">AliExpress 速卖通</option>
+              <option value="lazada">Lazada</option>
+              <option value="shopee">Shopee</option>
+              <option value="tiktok">TikTok Shop</option>
+              <option value="temu">Temu</option>
+              <option value="shein">SHEIN</option>
+              <option value="ebay">eBay</option>
+              <option value="etsy">Etsy</option>
+              <option value="walmart">Walmart</option>
+              <option value="rakuten">Rakuten 乐天</option>
+              <option value="coupang">Coupang</option>
+              <option value="mercadolibre">Mercado Libre</option>
+            </select></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">详情图要求</label>
+            <textarea id="product-prompt" class="prompt-input" rows="4" placeholder="建议输入：产品名称、卖点、目标人群、图片风格等"></textarea>
+            <div class="edit-prompt-actions"><button class="text-btn accent" onclick="aiWrite('product')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 帮写</button></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">目标语言</label>
+            <div class="select-wrap"><select id="product-lang" class="select-input">
+              <option value="none">无文字(纯视觉)</option>
+              <option value="zh">中文</option>
+              <option value="zh-tw">繁体中文</option>
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+              <option value="es">Español</option>
+              <option value="pt">Português</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="it">Italiano</option>
+              <option value="nl">Nederlands</option>
+              <option value="ru">Русский</option>
+              <option value="ar">العربية</option>
+              <option value="hi">हिन्दी</option>
+              <option value="id">Bahasa Indonesia</option>
+              <option value="ms">Bahasa Melayu</option>
+              <option value="th">ไทย</option>
+              <option value="vi">Tiếng Việt</option>
+              <option value="tl">Filipino / Tagalog</option>
+              <option value="tr">Türkçe</option>
+              <option value="pl">Polski</option>
+              <option value="uk">Українська</option>
+              <option value="he">עברית</option>
+              <option value="sv">Svenska</option>
+              <option value="da">Dansk</option>
+              <option value="fi">Suomi</option>
+              <option value="no">Norsk</option>
+            </select></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">尺寸比例</label>
+            <div class="size-grid" id="product-size-grid">
+              <button class="size-btn active" data-ratio="1:1" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon sq"></div></div><div class="size-info"><span class="size-ratio">1:1</span><span class="size-px">方图</span></div></button>
+              <button class="size-btn" data-ratio="4:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">4:3</span><span class="size-px">横版</span></div></button>
+              <button class="size-btn" data-ratio="3:2" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">3:2</span><span class="size-px">横图</span></div></button>
+              <button class="size-btn" data-ratio="16:9" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ws"></div></div><div class="size-info"><span class="size-ratio">16:9</span><span class="size-px">宽屏</span></div></button>
+              <button class="size-btn" data-ratio="3:4" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">3:4</span><span class="size-px">竖版</span></div></button>
+              <button class="size-btn" data-ratio="2:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">2:3</span><span class="size-px">竖图</span></div></button>
+              <button class="size-btn" data-ratio="9:16" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon phone"></div></div><div class="size-info"><span class="size-ratio">9:16</span><span class="size-px">手机屏</span></div></button>
+              <button class="size-btn" data-ratio="custom" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon custom"></div></div><div class="size-info"><span class="size-ratio">自定义</span><span class="size-px">宽 × 高</span></div></button>
+            </div>
+            <div class="custom-size-row" style="display:none">
+              <input type="number" class="custom-size-input custom-width" min="1" max="9999" placeholder="宽" oninput="updateCustomSize(this)">
+              <span class="custom-size-x">×</span>
+              <input type="number" class="custom-size-input custom-height" min="1" max="9999" placeholder="高" oninput="updateCustomSize(this)">
+            </div>
+            <span class="field-hint size-hint">自定义和非原生比例会按比例选择最接近的接口尺寸，并在提示词里强制画面构图。</span>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">清晰度</label>
+            <div class="quality-toggle" id="product-quality">
+              <button class="quality-btn" data-quality="low" onclick="selectQuality(this)"><span class="q-label">草稿</span><span class="q-desc">low 快速预览</span></button>
+              <button class="quality-btn" data-quality="medium" onclick="selectQuality(this)"><span class="q-label">标准</span><span class="q-desc">medium 均衡质量</span></button>
+              <button class="quality-btn active" data-quality="high" onclick="selectQuality(this)"><span class="q-label">精细</span><span class="q-desc">high 最高画质</span></button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">生成数量</label>
+            <div class="select-wrap"><select id="product-count" class="select-input">
+              <option value="1">1 张</option><option value="2">2 张</option><option value="4">4 张</option><option value="6">6 张</option>
+            </select></div>
+          </div>
+          <button class="primary-btn" onclick="generateNew('product')"><span class="btn-content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> 分析产品</span><span class="btn-loading" style="display:none"><span class="btn-spinner"></span> 生成中…</span></button>
+        </aside>
+        <div class="preview-area">
+          <div id="product-preview" class="preview-container empty">
+            <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></div><h3 class="empty-title">全品类商品图</h3><p class="empty-desc">上传产品图，AI 智能分析产品特征，自动生成电商主图及详情图组</p></div>
+            <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在分析并生成</p><p class="loading-sub">AI 正在分析产品特征，预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
+            <div class="result-state" style="display:none"><img id="product-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('product')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="fullscreen('product-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 风格复刻 ===== -->
+    <section id="tab-style" class="tab-panel">
+      <div class="generate-layout">
+        <aside class="control-panel">
+          <div class="panel-brand"><span class="panel-brand-icon">🎨</span><span>风格复刻</span></div>
+          <div class="panel-section">
+            <label class="field-label">参考设计图</label>
+            <span class="field-hint">放你想复刻的海报/详情页/主图风格：配色、排版、字体氛围、装饰元素会作为风格参考，不直接照抄产品。</span>
+            <div class="upload-zone" onclick="document.getElementById('style-ref-input').click()">
+              <input type="file" id="style-ref-input" accept="image/*" style="display:none" onchange="handleSingleUpload(event,'style-ref')">
+              <div class="upload-placeholder" id="style-ref-placeholder">
+                <div class="upload-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                <span class="upload-text">上传参考设计图（风格来源）</span>
+                <span class="upload-hint">建议上传海报、详情页、竞品图，PNG/JPG</span>
+              </div>
+              <img id="style-ref-img" src="" style="display:none;max-width:100%;max-height:200px;object-fit:contain;border-radius:6px" />
+              <button id="style-ref-remove" class="single-remove" style="display:none" onclick="event.stopPropagation();clearSingleUpload('style-ref')">&times;</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">产品素材图</label>
+            <span class="field-hint">放你自己的产品图。AI 会保留产品外观，把参考图的版式和视觉风格迁移过来。</span>
+            <div class="upload-zone compact" onclick="document.getElementById('style-prod-input').click()">
+              <input type="file" id="style-prod-input" accept="image/*" multiple style="display:none" onchange="handleMultiUpload(event,'style-prod')">
+              <div class="upload-placeholder compact" id="style-prod-placeholder">
+                <div class="upload-icon-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                <span class="upload-text">上传产品图片 (0/6)</span>
+                <span class="upload-hint">可多张：主体、角度、细节</span>
+              </div>
+              <div id="style-prod-previews" class="multi-previews" style="display:none"></div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">复刻强度</label>
+            <div class="quality-toggle" id="style-strength-toggle">
+              <button class="quality-btn" data-strength="light" onclick="selectStyleStrength(this)"><span class="q-label">轻度</span><span class="q-desc">借鉴配色</span></button>
+              <button class="quality-btn active" data-strength="medium" onclick="selectStyleStrength(this)"><span class="q-label">标准</span><span class="q-desc">配色+排版</span></button>
+              <button class="quality-btn" data-strength="strong" onclick="selectStyleStrength(this)"><span class="q-label">强复刻</span><span class="q-desc">高度贴近</span></button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">输出类型</label>
+            <div class="select-wrap"><select id="style-output" class="select-input">
+              <option value="detail">详情图 / 卖点图</option>
+              <option value="main">主图 / 海报图</option>
+              <option value="banner">横幅 Banner</option>
+              <option value="social">社媒广告图</option>
+            </select></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">补充提示词 <span class="label-opt">可选</span></label>
+            <textarea id="style-prompt" class="prompt-input" rows="4" placeholder="不用写复杂提示词，简单写你要加的文案/卖点/活动即可。&#10;&#10;例如：添加“限时特惠”“买一送一”，突出防水、便携、高级感"></textarea>
+            <div class="edit-prompt-actions"><button class="text-btn accent" onclick="aiWrite('style')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 帮写</button></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">尺寸比例</label>
+            <div class="size-grid" id="style-size-grid">
+              <button class="size-btn active" data-ratio="1:1" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon sq"></div></div><div class="size-info"><span class="size-ratio">1:1</span><span class="size-px">方图</span></div></button>
+              <button class="size-btn" data-ratio="4:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">4:3</span><span class="size-px">横版</span></div></button>
+              <button class="size-btn" data-ratio="3:2" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">3:2</span><span class="size-px">横图</span></div></button>
+              <button class="size-btn" data-ratio="16:9" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ws"></div></div><div class="size-info"><span class="size-ratio">16:9</span><span class="size-px">宽屏</span></div></button>
+              <button class="size-btn" data-ratio="3:4" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">3:4</span><span class="size-px">竖版</span></div></button>
+              <button class="size-btn" data-ratio="2:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">2:3</span><span class="size-px">竖图</span></div></button>
+              <button class="size-btn" data-ratio="9:16" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon phone"></div></div><div class="size-info"><span class="size-ratio">9:16</span><span class="size-px">手机屏</span></div></button>
+              <button class="size-btn" data-ratio="custom" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon custom"></div></div><div class="size-info"><span class="size-ratio">自定义</span><span class="size-px">宽 × 高</span></div></button>
+            </div>
+            <div class="custom-size-row" style="display:none">
+              <input type="number" class="custom-size-input custom-width" min="1" max="9999" placeholder="宽" oninput="updateCustomSize(this)">
+              <span class="custom-size-x">×</span>
+              <input type="number" class="custom-size-input custom-height" min="1" max="9999" placeholder="高" oninput="updateCustomSize(this)">
+            </div>
+            <span class="field-hint size-hint">自定义和非原生比例会按比例选择最接近的接口尺寸，并在提示词里强制画面构图。</span>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">清晰度</label>
+            <div class="quality-toggle" id="style-quality">
+              <button class="quality-btn" data-quality="low" onclick="selectQuality(this)"><span class="q-label">草稿</span><span class="q-desc">low 快速预览</span></button>
+              <button class="quality-btn" data-quality="medium" onclick="selectQuality(this)"><span class="q-label">标准</span><span class="q-desc">medium 均衡质量</span></button>
+              <button class="quality-btn active" data-quality="high" onclick="selectQuality(this)"><span class="q-label">精细</span><span class="q-desc">high 最高画质</span></button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">生成数量</label>
+            <div class="select-wrap"><select id="style-count" class="select-input">
+              <option value="1">1 张</option><option value="2">2 张</option><option value="4">4 张</option>
+            </select></div>
+          </div>
+          <button class="primary-btn" onclick="generateNew('style')"><span class="btn-content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> 生成详情图</span><span class="btn-loading" style="display:none"><span class="btn-spinner"></span> 生成中…</span></button>
+        </aside>
+        <div class="preview-area">
+          <div id="style-preview" class="preview-container empty">
+            <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div><h3 class="empty-title">风格复刻</h3><p class="empty-desc">上传参考设计图和产品素材，AI 智能融合风格与产品特性，生成高转化详情图</p></div>
+            <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在生成</p><p class="loading-sub">AI 正在融合风格，预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
+            <div class="result-state" style="display:none"><img id="style-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('style')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="fullscreen('style-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ===== 服装组图 ===== -->
+    <section id="tab-clothing" class="tab-panel">
+      <div class="generate-layout">
+        <aside class="control-panel">
+          <div class="panel-brand"><span class="panel-brand-icon">👗</span><span>服装组图</span></div>
+          <div class="panel-section">
+            <label class="field-label">模式</label>
+            <div class="quality-toggle" id="clothing-mode-toggle">
+              <button class="quality-btn" onclick="toggleBtn(this)"><span class="q-label">模特试穿</span><span class="q-desc">模特+服装</span></button>
+              <button class="quality-btn active" onclick="toggleBtn(this)"><span class="q-label">基础套图</span><span class="q-desc">白底/细节</span></button>
+            </div>
+            <span id="clothing-mode-help" class="field-hint">上传服装产品图，生成白底精修、平铺/挂拍、细节特写等基础素材。</span>
+          </div>
+          <div class="panel-section" id="clothing-model-section" style="display:none">
+            <label class="field-label">模特图 <span class="label-opt">可选</span></label>
+            <div class="upload-zone compact" onclick="document.getElementById('clothing-model-file-input').click()">
+              <input type="file" id="clothing-model-file-input" accept="image/*" multiple style="display:none" onchange="handleMultiUpload(event,'clothing-model',3)">
+              <div class="upload-placeholder compact" id="clothing-model-placeholder">
+                <div class="upload-icon-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                <span class="upload-text">上传模特原图（可选）</span>
+                <span class="upload-hint">有模特图：把服装穿到该模特身上；没有则自动生成模特</span>
+              </div>
+              <div id="clothing-model-previews" class="multi-previews" style="display:none"></div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label" id="clothing-upload-label">产品图</label>
+            <div class="upload-zone" onclick="document.getElementById('clothing-file-input').click()">
+              <input type="file" id="clothing-file-input" accept="image/*" multiple style="display:none" onchange="handleMultiUpload(event,'clothing')">
+              <div class="upload-placeholder" id="clothing-placeholder">
+                <div class="upload-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                <span class="upload-text" id="clothing-upload-text">上传多角度产品图或细节图</span>
+                <span class="upload-hint" id="clothing-upload-hint">拖拽或点击上传 (0/6)</span>
+              </div>
+              <div id="clothing-previews" class="multi-previews" style="display:none"></div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">组图要求</label>
+            <textarea id="clothing-prompt" class="prompt-input" rows="4" placeholder="基础套图用法：上传服装产品图，简单写款式/风格即可。&#10;&#10;例如：白色连衣裙，夏季清新风，生成白底主图、平铺图、细节特写"></textarea>
+            <div class="edit-prompt-actions"><button class="text-btn accent" onclick="aiWrite('clothing')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 帮写</button></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">尺寸比例</label>
+            <div class="size-grid" id="clothing-size-grid">
+              <button class="size-btn active" data-ratio="1:1" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon sq"></div></div><div class="size-info"><span class="size-ratio">1:1</span><span class="size-px">方图</span></div></button>
+              <button class="size-btn" data-ratio="4:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">4:3</span><span class="size-px">横版</span></div></button>
+              <button class="size-btn" data-ratio="3:2" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">3:2</span><span class="size-px">横图</span></div></button>
+              <button class="size-btn" data-ratio="16:9" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ws"></div></div><div class="size-info"><span class="size-ratio">16:9</span><span class="size-px">宽屏</span></div></button>
+              <button class="size-btn" data-ratio="3:4" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">3:4</span><span class="size-px">竖版</span></div></button>
+              <button class="size-btn" data-ratio="2:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">2:3</span><span class="size-px">竖图</span></div></button>
+              <button class="size-btn" data-ratio="9:16" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon phone"></div></div><div class="size-info"><span class="size-ratio">9:16</span><span class="size-px">手机屏</span></div></button>
+              <button class="size-btn" data-ratio="custom" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon custom"></div></div><div class="size-info"><span class="size-ratio">自定义</span><span class="size-px">宽 × 高</span></div></button>
+            </div>
+            <div class="custom-size-row" style="display:none">
+              <input type="number" class="custom-size-input custom-width" min="1" max="9999" placeholder="宽" oninput="updateCustomSize(this)">
+              <span class="custom-size-x">×</span>
+              <input type="number" class="custom-size-input custom-height" min="1" max="9999" placeholder="高" oninput="updateCustomSize(this)">
+            </div>
+            <span class="field-hint size-hint">自定义和非原生比例会按比例选择最接近的接口尺寸，并在提示词里强制画面构图。</span>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">清晰度</label>
+            <div class="quality-toggle" id="clothing-quality">
+              <button class="quality-btn" data-quality="low" onclick="selectQuality(this)"><span class="q-label">草稿</span><span class="q-desc">low 快速预览</span></button>
+              <button class="quality-btn" data-quality="medium" onclick="selectQuality(this)"><span class="q-label">标准</span><span class="q-desc">medium 均衡质量</span></button>
+              <button class="quality-btn active" data-quality="high" onclick="selectQuality(this)"><span class="q-label">精细</span><span class="q-desc">high 最高画质</span></button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">生成数量</label>
+            <div class="select-wrap"><select id="clothing-count" class="select-input">
+              <option value="1">1 张</option><option value="2">2 张</option><option value="4">4 张</option><option value="6">6 张</option>
+            </select></div>
+          </div>
+          <button class="primary-btn" onclick="generateNew('clothing')"><span class="btn-content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> 生成服装组图</span><span class="btn-loading" style="display:none"><span class="btn-spinner"></span> 生成中…</span></button>
+        </aside>
+        <div class="preview-area">
+          <div id="clothing-preview" class="preview-container empty">
+            <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6.5 2L2 6l3 1v13h14V7l3-1-4.5-4h-4L12 4l-1.5-2z"/></svg></div><h3 class="empty-title">智能生成服装详情图组</h3><p class="empty-desc">上传服装产品图，AI 分析款式、面料与细节，自动生成白底精修、3D 立体展示及细节特写</p></div>
+            <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在生成服装组图</p><p class="loading-sub">AI 正在分析服装特征，预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
+            <div class="result-state" style="display:none"><img id="clothing-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('clothing')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="fullscreen('clothing-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 图片精修 ===== -->
+    <section id="tab-refine" class="tab-panel">
+      <div class="generate-layout">
+        <aside class="control-panel">
+          <div class="panel-brand"><span class="panel-brand-icon">✨</span><span>图片精修</span></div>
+          <div class="panel-section">
+            <label class="field-label">产品图</label>
+            <div class="upload-zone" onclick="document.getElementById('refine-file-input').click()">
+              <input type="file" id="refine-file-input" accept="image/*" multiple style="display:none" onchange="handleMultiUpload(event,'refine',50)">
+              <div class="upload-placeholder" id="refine-placeholder">
+                <div class="upload-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                <span class="upload-text">点击上传或拖拽图片到此区域</span>
+                <span class="upload-hint">支持 JPG、PNG 格式，最多 50 张 (0/50)</span>
+              </div>
+              <div id="refine-previews" class="multi-previews" style="display:none"></div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">精修要求 <span class="label-opt">可选</span></label>
+            <textarea id="refine-prompt" class="prompt-input" rows="3" placeholder="例如：去除背景杂物、增强产品光泽、修复划痕、提升整体清晰度..."></textarea>
+            <div class="edit-prompt-actions"><button class="text-btn accent" onclick="aiWrite('refine')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 帮写</button></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">背景设置</label>
+            <div class="select-wrap"><select id="refine-bg" class="select-input">
+              <option value="white">白底图</option><option value="transparent">透明背景</option><option value="scene">场景图</option><option value="keep">保留原背景</option>
+            </select></div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">尺寸比例</label>
+            <div class="size-grid" id="refine-size-grid">
+              <button class="size-btn active" data-ratio="1:1" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon sq"></div></div><div class="size-info"><span class="size-ratio">1:1</span><span class="size-px">方图</span></div></button>
+              <button class="size-btn" data-ratio="4:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">4:3</span><span class="size-px">横版</span></div></button>
+              <button class="size-btn" data-ratio="3:2" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">3:2</span><span class="size-px">横图</span></div></button>
+              <button class="size-btn" data-ratio="16:9" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ws"></div></div><div class="size-info"><span class="size-ratio">16:9</span><span class="size-px">宽屏</span></div></button>
+              <button class="size-btn" data-ratio="3:4" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">3:4</span><span class="size-px">竖版</span></div></button>
+              <button class="size-btn" data-ratio="2:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">2:3</span><span class="size-px">竖图</span></div></button>
+              <button class="size-btn" data-ratio="9:16" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon phone"></div></div><div class="size-info"><span class="size-ratio">9:16</span><span class="size-px">手机屏</span></div></button>
+              <button class="size-btn" data-ratio="custom" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon custom"></div></div><div class="size-info"><span class="size-ratio">自定义</span><span class="size-px">宽 × 高</span></div></button>
+            </div>
+            <div class="custom-size-row" style="display:none">
+              <input type="number" class="custom-size-input custom-width" min="1" max="9999" placeholder="宽" oninput="updateCustomSize(this)">
+              <span class="custom-size-x">×</span>
+              <input type="number" class="custom-size-input custom-height" min="1" max="9999" placeholder="高" oninput="updateCustomSize(this)">
+            </div>
+            <span class="field-hint size-hint">自定义和非原生比例会按比例选择最接近的接口尺寸，并在提示词里强制画面构图。</span>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">清晰度</label>
+            <div class="quality-toggle" id="refine-quality">
+              <button class="quality-btn" data-quality="low" onclick="selectQuality(this)"><span class="q-label">草稿</span><span class="q-desc">low 快速预览</span></button>
+              <button class="quality-btn" data-quality="medium" onclick="selectQuality(this)"><span class="q-label">标准</span><span class="q-desc">medium 均衡质量</span></button>
+              <button class="quality-btn active" data-quality="high" onclick="selectQuality(this)"><span class="q-label">精细</span><span class="q-desc">high 最高画质</span></button>
+            </div>
+          </div>
+          <button class="primary-btn" onclick="generateNew('refine')"><span class="btn-content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> 开始一键精修</span><span class="btn-loading" style="display:none"><span class="btn-spinner"></span> 精修中…</span></button>
+        </aside>
+        <div class="preview-area">
+          <div id="refine-preview" class="preview-container empty">
+            <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m-7.07-15.07l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div><h3 class="empty-title">一键智能产品精修</h3><p class="empty-desc">上传产品图片，AI 自动分析并优化画质、去除瑕疵、增强细节，让您的产品图更专业</p></div>
+            <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在精修图片</p><p class="loading-sub">AI 正在优化画质，预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
+            <div class="result-state" style="display:none"><img id="refine-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('refine')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="fullscreen('refine-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ===== 生成页(原有) ===== -->
+    <section id="tab-generate" class="tab-panel">
+      <div class="generate-layout">
+        <aside class="control-panel">
+          <div class="panel-brand"><span class="panel-brand-icon">✦</span><span>创作面板</span></div>
+          <div class="panel-section">
+            <label class="field-label">描述你的想象</label>
+            <div class="prompt-wrap">
+              <textarea id="gen-prompt" class="prompt-input" rows="5" placeholder="输入你想生成的画面描述…&#10;&#10;例如：一只橘猫坐在落地窗前，窗外是下雨的东京街景，&#10;暖色灯光，胶片质感，浅景深"></textarea>
+              <div class="prompt-footer">
+                <span class="char-count"><span id="prompt-count">0</span> 字符</span>
+                <div class="prompt-footer-actions">
+                  <button id="btn-polish-gen" class="text-btn accent" onclick="polishGenPrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 润色</button>
+                  <button class="text-btn" onclick="clearPrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> 清空</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">画面尺寸</label>
+            <div class="size-grid" id="generate-size-grid">
+              <button class="size-btn active" data-ratio="1:1" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon sq"></div></div><div class="size-info"><span class="size-ratio">1:1</span><span class="size-px">方图</span></div></button>
+              <button class="size-btn" data-ratio="4:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">4:3</span><span class="size-px">横版</span></div></button>
+              <button class="size-btn" data-ratio="3:2" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ls"></div></div><div class="size-info"><span class="size-ratio">3:2</span><span class="size-px">横图</span></div></button>
+              <button class="size-btn" data-ratio="16:9" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon ws"></div></div><div class="size-info"><span class="size-ratio">16:9</span><span class="size-px">宽屏</span></div></button>
+              <button class="size-btn" data-ratio="3:4" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">3:4</span><span class="size-px">竖版</span></div></button>
+              <button class="size-btn" data-ratio="2:3" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon pt"></div></div><div class="size-info"><span class="size-ratio">2:3</span><span class="size-px">竖图</span></div></button>
+              <button class="size-btn" data-ratio="9:16" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon phone"></div></div><div class="size-info"><span class="size-ratio">9:16</span><span class="size-px">手机屏</span></div></button>
+              <button class="size-btn" data-ratio="custom" onclick="selectSize(this)"><div class="size-icon-wrap"><div class="size-icon custom"></div></div><div class="size-info"><span class="size-ratio">自定义</span><span class="size-px">宽 × 高</span></div></button>
+            </div>
+            <div class="custom-size-row" style="display:none">
+              <input type="number" class="custom-size-input custom-width" min="1" max="9999" placeholder="宽" oninput="updateCustomSize(this)">
+              <span class="custom-size-x">×</span>
+              <input type="number" class="custom-size-input custom-height" min="1" max="9999" placeholder="高" oninput="updateCustomSize(this)">
+            </div>
+            <span class="field-hint size-hint">自定义和非原生比例会按比例选择最接近的接口尺寸，并在提示词里强制画面构图。</span>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">画质</label>
+            <div class="quality-toggle">
+              <button class="quality-btn" data-quality="low" onclick="selectQuality(this)"><span class="q-label">草稿</span><span class="q-desc">low 快速预览</span></button>
+              <button class="quality-btn" data-quality="medium" onclick="selectQuality(this)"><span class="q-label">标准</span><span class="q-desc">medium 均衡质量</span></button>
+              <button class="quality-btn active" data-quality="high" onclick="selectQuality(this)"><span class="q-label">精细</span><span class="q-desc">high 最高画质</span></button>
+            </div>
+          </div>
+          <button id="btn-generate" class="primary-btn" onclick="generateImage()"><span class="btn-content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> 开始生成</span><span class="btn-loading" style="display:none"><span class="btn-spinner"></span> 生成中…</span></button>
+        </aside>
+        <div class="preview-area">
+          <div id="gen-preview" class="preview-container empty">
+            <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div><h3 class="empty-title">准备好创作了</h3><p class="empty-desc">在左侧输入描述，生成高质量图像</p>
+              <div class="empty-tags"><span class="tag" onclick="useExample('日落时分的富士山，湖面倒影，水彩画风格')">🏔 风景</span><span class="tag" onclick="useExample('一只白色布偶猫躺在米色沙发上，自然光，杂志摄影')">🐱 宠物</span><span class="tag" onclick="useExample('极简主义产品摄影，白色背景上的精致手表，柔和阴影')">⌚ 产品</span><span class="tag" onclick="useExample('赛博朋克风格的未来城市夜景，霓虹灯，雨天倒影')">🌃 概念</span></div>
+            </div>
+            <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在生成图像</p><p class="loading-sub">GPT Image 2 正在创作中，预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
+            <div class="result-state" style="display:none"><img id="gen-result-img" src="" alt="生成结果" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="downloadCurrent()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="sendToEdit()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑</button><button class="action-pill" onclick="openFullscreen()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+          </div>
+          <div id="gen-info" class="gen-info" style="display:none"><div class="gen-info-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg><span id="gen-info-size"></span></div><div class="gen-info-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span id="gen-info-time"></span></div><div class="gen-info-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span>GPT Image 2</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 编辑页(原有) ===== -->
+    <section id="tab-edit" class="tab-panel">
+      <div class="edit-layout">
+        <aside class="control-panel">
+          <div class="panel-brand"><span class="panel-brand-icon">✎</span><span>编辑面板</span></div>
+          <div class="panel-section">
+            <label class="field-label">原始图片</label>
+            <div id="edit-upload-zone" class="upload-zone" onclick="document.getElementById('edit-file-input').click()">
+              <input type="file" id="edit-file-input" accept="image/*" style="display:none" onchange="handleEditUpload(event)">
+              <div class="upload-placeholder" id="edit-upload-placeholder"><div class="upload-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><span class="upload-text">点击上传或拖拽图片到此处</span><span class="upload-hint">支持 PNG、JPG、WebP</span></div>
+              <img id="edit-upload-preview" src="" style="display:none" />
+              <button id="edit-src-remove" class="single-remove" style="display:none" onclick="event.stopPropagation();clearEditUpload('source')">&times;</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">遮罩图层 <span class="label-opt">可选</span></label>
+            <div id="mask-upload-zone" class="upload-zone compact" onclick="document.getElementById('mask-file-input').click()">
+              <input type="file" id="mask-file-input" accept="image/*" style="display:none" onchange="handleMaskUpload(event)">
+              <div class="upload-placeholder compact" id="mask-upload-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/></svg><span>上传遮罩</span></div>
+              <img id="mask-upload-preview" src="" style="display:none" />
+              <button id="mask-src-remove" class="single-remove" style="display:none" onclick="event.stopPropagation();clearEditUpload('mask')">&times;</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">编辑指令</label>
+            <textarea id="edit-prompt" class="prompt-input" rows="4" placeholder="描述你想要的修改…&#10;&#10;例如：将背景替换为海边日落"></textarea>
+            <div class="edit-prompt-actions">
+              <button id="btn-reverse" class="text-btn accent" onclick="reversePrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> 反推提示词</button>
+              <button id="btn-polish-edit" class="text-btn accent" onclick="polishEditPrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 润色</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">输出尺寸</label>
+            <div class="select-wrap"><select id="edit-size" class="select-input">
+                <option value="auto">自动（跟随原图）</option>
+                <option value="1:1">1:1 方图</option>
+                <option value="4:3">4:3 横版</option>
+                <option value="3:2">3:2 横图</option>
+                <option value="16:9">16:9 宽屏</option>
+                <option value="3:4">3:4 竖版</option>
+                <option value="2:3">2:3 竖图</option>
+                <option value="9:16">9:16 手机屏</option>
+                <option value="custom">自定义宽高</option>
+              </select>
+            </div>
+            <div id="edit-custom-size" class="custom-size-row" style="display:none">
+              <input type="number" id="edit-custom-width" class="custom-size-input custom-width" min="1" max="9999" placeholder="宽">
+              <span class="custom-size-x">×</span>
+              <input type="number" id="edit-custom-height" class="custom-size-input custom-height" min="1" max="9999" placeholder="高">
+            </div>
+            <span class="field-hint size-hint">自定义和非原生比例会按比例选择最接近的接口尺寸，并在提示词里强制画面构图。</span>
+          </div>
+          <button id="btn-edit" class="primary-btn" onclick="editImage()"><span class="btn-content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 开始编辑</span><span class="btn-loading" style="display:none"><span class="btn-spinner"></span> 编辑中…</span></button>
+        </aside>
+        <div class="preview-area">
+          <div id="edit-preview" class="preview-container empty">
+            <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><h3 class="empty-title">图片编辑</h3><p class="empty-desc">上传一张图片，用文字描述你想要的修改</p></div>
+            <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在编辑图像</p><p class="loading-sub">预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
+            <div class="result-state" style="display:none"><img id="edit-result-img" src="" alt="编辑结果" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="downloadEditResult()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="openEditFullscreen()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 案例专区 ===== -->
+    <section id="tab-cases" class="tab-panel">
+      <div class="cases-page">
+        <div class="cases-toolbar">
+          <div class="cases-heading">
+            <h2>案例专区</h2>
+            <p>收录 awesome-gpt-image-2 画廊案例，点击图片查看详情，一键复制提示词到生成页。</p>
+          </div>
+          <div class="cases-search-wrap">
+            <input id="case-search" class="text-input" type="search" placeholder="搜索案例、提示词、来源..." oninput="renderCases()">
+          </div>
+        </div>
+        <div id="case-category-bar" class="case-category-bar"></div>
+        <div class="case-meta-row"><span id="case-count">0 个案例</span><span>点击卡片查看提示词和生成入口</span></div>
+        <div id="case-grid" class="case-grid"></div>
+      </div>
+    </section>
+
+    <!-- ===== 历史页(原有) ===== -->
+    <section id="tab-history" class="tab-panel">
+      <div class="history-toolbar">
+        <div class="history-tabs">
+          <button class="htab active" onclick="filterHistory('all', this)">全部</button>
+          <button class="htab" onclick="filterHistory('generate', this)">生成</button>
+          <button class="htab" onclick="filterHistory('edit', this)">编辑</button>
+          <button class="htab" onclick="filterHistory('product', this)">商品图</button>
+          <button class="htab" onclick="filterHistory('style', this)">风格复刻</button>
+          <button class="htab" onclick="filterHistory('clothing', this)">服装</button>
+          <button class="htab" onclick="filterHistory('refine', this)">精修</button>
+        </div>
+        <div class="history-meta">
+          <span id="history-count" class="history-count">0 条记录</span>
+          <button class="text-btn danger" onclick="clearHistory()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg> 清空</button>
+        </div>
+      </div>
+      <div id="history-grid" class="history-grid">
+        <div class="history-empty"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div><h3 class="empty-title">暂无历史记录</h3><p class="empty-desc">你创作的图片会自动保存在这里</p></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 设置弹窗 -->
+  <div id="settings-modal" class="modal-overlay" style="display:none" onclick="closeSettingsOutside(event)">
+    <div class="modal-box">
+      <div class="modal-header"><h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> API 配置</h3><button class="modal-close" onclick="closeSettings()">&times;</button></div>
+      <div class="modal-body">
+        <div class="field-group"><label class="field-label">密钥 (API Key)</label><div class="input-with-toggle"><input id="setting-apikey" type="password" class="text-input" placeholder="输入你的 API Key"><button class="toggle-vis" onclick="toggleKeyVis()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div><span class="field-hint">密钥仅存储在浏览器本地，不会上传</span></div>
+        <div class="field-group"><label class="field-label">接口地址 (API Base URL)</label><input id="setting-api-base" type="url" class="text-input" placeholder="https://apichat.jiazhuangai.com"><span class="field-hint">兼容 OpenAI 格式的中转接口地址，末尾不需要填写 /v1</span></div>
+        <div class="field-group"><label class="field-label">文生图通道</label><div class="select-wrap"><select id="setting-generation-provider" class="select-input"><option value="auto">自动匹配（走 New API）</option><option value="openai">OpenAI 兼容 / New API</option><option value="nvidia-native">NVIDIA 原生直连</option></select></div><span class="field-hint">默认经过你的 New API；只有选择 NVIDIA 原生直连并填写 NVIDIA Key 时才请求 ai.api.nvidia.com</span></div>
+        <div class="field-group"><label class="field-label">NVIDIA 原生地址</label><input id="setting-nvidia-api-base" type="url" class="text-input" placeholder="https://ai.api.nvidia.com"><span class="field-hint">用于 black-forest-labs/flux.2-klein-4b，通常保持默认</span></div>
+        <div class="field-group"><label class="field-label">NVIDIA Key <span class="label-opt">仅直连时填写</span></label><input id="setting-nvidia-apikey" type="password" class="text-input" placeholder="nvapi-..."><span class="field-hint">只在 NVIDIA 原生直连通道使用；留空不会请求 ai.api.nvidia.com</span></div>
+        <div class="field-group"><label class="field-label">文生图模型</label><input id="setting-generation-model" type="text" class="text-input" list="image-model-options" placeholder="gpt-image-2"><span class="field-hint">纯文字生成图片使用，例如 gpt-image-2 或 qwen/qwen-image</span></div>
+        <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、遮罩编辑时使用，例如 gpt-image-2 或 qwen/qwen-image-edit</span></div>
+        <datalist id="image-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image"><option value="black-forest-labs/flux.2-klein-4b"><option value="qwen/qwen-image"><option value="qwen/qwen-image-2512"></datalist>
+        <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image-Edit"><option value="Qwen/Qwen-Image-Edit-2509"><option value="qwen/qwen-image-edit"><option value="qwen/qwen-image-edit-2511"></datalist>
+        <div class="field-group"><label class="field-label">润色模型 <span class="label-opt">可选</span></label><input id="setting-polish-model" type="text" class="text-input" placeholder="留空默认 gpt-5.5"><span class="field-hint">AI 润色/反推使用的对话模型</span></div>
+        <div class="field-group"><button class="secondary-btn full" onclick="testConnection()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> 测试连接</button><div id="conn-status" class="conn-status"></div></div>
+      </div>
+      <div class="modal-footer"><button class="secondary-btn" onclick="closeSettings()">取消</button><button class="primary-btn compact" onclick="saveSettings()">保存配置</button></div>
+    </div>
+  </div>
+
+  <!-- 全屏预览 -->
+  <div id="fullscreen-overlay" class="fullscreen-overlay" style="display:none" onclick="closeFullscreen()">
+    <img id="fullscreen-img" src="" />
+    <button class="fullscreen-close" onclick="closeFullscreen()">&times;</button>
+  </div>
+
+  <!-- 历史详情弹窗 -->
+  <div id="detail-modal" class="modal-overlay" style="display:none" onclick="closeDetailOutside(event)">
+    <div class="modal-box large">
+      <div class="modal-header"><h3 id="detail-title">图片详情</h3><button class="modal-close" onclick="closeDetail()">&times;</button></div>
+      <div class="modal-body detail-body">
+        <div class="detail-image-wrap"><img id="detail-img" src="" /></div>
+        <div class="detail-info"><div class="detail-row"><span class="detail-label">类型</span><span id="detail-type" class="detail-value"></span></div><div class="detail-row"><span class="detail-label">提示词</span><span id="detail-prompt" class="detail-value prompt"></span></div><div class="detail-row"><span class="detail-label">尺寸</span><span id="detail-size" class="detail-value"></span></div><div class="detail-row"><span class="detail-label">耗时</span><span id="detail-elapsed" class="detail-value"></span></div><div class="detail-row"><span class="detail-label">创建时间</span><span id="detail-time" class="detail-value"></span></div></div>
+      </div>
+      <div class="modal-footer"><button class="secondary-btn danger-outline" onclick="deleteHistoryItem()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg> 删除</button><button class="primary-btn compact" onclick="downloadDetailImage()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button></div>
+    </div>
+  </div>
+
+  <footer class="status-bar">
+    <span class="status-label">接口</span>
+    <span id="endpoint-indicator" class="endpoint-indicator unconfigured" onclick="openSettings()" title="点击修改">未配置</span>
+  </footer>
+  <div id="toast" class="toast"></div>
+</div>
+  <!-- 案例详情 -->
+  <div id="case-modal" class="modal-overlay" style="display:none" onclick="closeCaseOutside(event)">
+    <div class="modal-box large case-modal-box">
+      <div class="modal-header"><h3 id="case-detail-title">案例详情</h3><button class="modal-close" onclick="closeCaseDetail()">&times;</button></div>
+      <div class="modal-body case-detail-body">
+        <div class="case-detail-image-wrap"><img id="case-detail-img" src="" alt="案例图"></div>
+        <div class="case-detail-info">
+          <div class="case-detail-meta"><span id="case-detail-cats"></span><span id="case-detail-source"></span></div>
+          <label class="field-label">提示词</label>
+          <div class="case-prompt-toolbar">
+            <button id="case-lang-all" class="case-lang-btn active" onclick="setCasePromptLang('all')">全部</button>
+            <button id="case-lang-zh" class="case-lang-btn" onclick="setCasePromptLang('zh')">中文</button>
+            <button id="case-lang-en" class="case-lang-btn" onclick="setCasePromptLang('en')">英文</button>
+          </div>
+          <textarea id="case-detail-prompt" class="prompt-input case-prompt-textarea" readonly></textarea>
+          <div class="case-detail-actions">
+            <button class="primary-btn compact" onclick="useCasePrompt()">复制当前提示词到生成页</button>
+            <button class="secondary-btn" onclick="copyCasePrompt()">仅复制当前提示词</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- ===== Mobile Bottom Nav ===== -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <button class="mob-nav-item active" data-tab="product" onclick="mobileSwitchTab('product')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+    <span>商品图</span>
+  </button>
+  <button class="mob-nav-item" data-tab="style" onclick="mobileSwitchTab('style')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    <span>风格复刻</span>
+  </button>
+  <button class="mob-nav-item" data-tab="generate" onclick="mobileSwitchTab('generate')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
+    <span>生成</span>
+  </button>
+  <button class="mob-nav-item" data-tab="edit" onclick="mobileSwitchTab('edit')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    <span>编辑</span>
+  </button>
+  <button class="mob-nav-item" data-tab="more" onclick="toggleMobileMore()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+    <span>更多</span>
+  </button>
+</nav>
+
+<!-- Mobile More Menu -->
+<div class="mobile-more-overlay" id="mobileMoreOverlay" onclick="closeMobileMore()">
+  <div class="mobile-more-sheet" onclick="event.stopPropagation()">
+    <div class="mobile-more-header"><span>更多功能</span><button onclick="closeMobileMore()">&times;</button></div>
+    <div class="mobile-more-grid">
+      <button class="mobile-more-item" onclick="mobileSwitchTab('clothing');closeMobileMore()">
+        <div class="more-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6.5 2L2 6l3 1v13h14V7l3-1-4.5-4h-4L12 4l-1.5-2z"/></svg></div>
+        <span>服装组图</span>
+      </button>
+      <button class="mobile-more-item" onclick="mobileSwitchTab('refine');closeMobileMore()">
+        <div class="more-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m-7.07-15.07l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
+        <span>图片精修</span>
+      </button>
+      <button class="mobile-more-item" onclick="mobileSwitchTab('cases');closeMobileMore()">
+        <div class="more-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <span>案例专区</span>
+      </button>
+      <button class="mobile-more-item" onclick="mobileSwitchTab('history');closeMobileMore()">
+        <div class="more-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div>
+        <span>历史</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="gallery-cases.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
