@@ -611,16 +611,22 @@ function parseApiError(text, status) {
   try { const j = JSON.parse(text); return j.error?.message || `HTTP ${status}`; } catch { return `HTTP ${status}: ${text.slice(0, 200)}`; }
 }
 
+function normalizeImageSource(value) {
+  if (!value) return '';
+  if (/^(data:|https?:\/\/|blob:)/i.test(value)) return value;
+  return `data:image/png;base64,${value}`;
+}
+
 function extractImage(data) {
-  if (data.data?.[0]) { const d = data.data[0]; return d.b64_json ? `data:image/png;base64,${d.b64_json}` : d.url || ''; }
-  if (data.images?.[0]) { const d = data.images[0]; return d.b64_json ? `data:image/png;base64,${d.b64_json}` : d.base64 ? `data:image/png;base64,${d.base64}` : d.url || ''; }
-  if (data.artifacts?.[0]) { const d = data.artifacts[0]; return d.base64 ? `data:image/png;base64,${d.base64}` : d.url || ''; }
+  if (data.data?.[0]) { const d = data.data[0]; return normalizeImageSource(d.b64_json || d.url); }
+  if (data.images?.[0]) { const d = data.images[0]; return normalizeImageSource(d.b64_json || d.base64 || d.url); }
+  if (data.artifacts?.[0]) { const d = data.artifacts[0]; return normalizeImageSource(d.base64 || d.url); }
   return '';
 }
 function extractAllImages(data) {
-  if (data.data?.length) return data.data.map(d => d.b64_json ? `data:image/png;base64,${d.b64_json}` : d.url || '').filter(Boolean);
-  if (data.images?.length) return data.images.map(d => d.b64_json ? `data:image/png;base64,${d.b64_json}` : d.base64 ? `data:image/png;base64,${d.base64}` : d.url || '').filter(Boolean);
-  if (data.artifacts?.length) return data.artifacts.map(d => d.base64 ? `data:image/png;base64,${d.base64}` : d.url || '').filter(Boolean);
+  if (data.data?.length) return data.data.map(d => normalizeImageSource(d.b64_json || d.url)).filter(Boolean);
+  if (data.images?.length) return data.images.map(d => normalizeImageSource(d.b64_json || d.base64 || d.url)).filter(Boolean);
+  if (data.artifacts?.length) return data.artifacts.map(d => normalizeImageSource(d.base64 || d.url)).filter(Boolean);
   return [];
 }
 function selectResultImg(thumb, tab) {
