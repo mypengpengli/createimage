@@ -69,6 +69,25 @@ async function callQwenImageEditGeneration(cfg, model, prompt, file) {
   if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
   return res.json();
 }
+async function callJsonImageEditGeneration(cfg, model, prompt, file, sizeSpec, quality) {
+  const image = await fileToDataUrl(file);
+  const body = { model, prompt, image, n: 1 };
+  appendImageRequestOptions(body, sizeSpec, quality, model);
+  const res = await fetch(apiUrl('/v1/images/generations'), {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
+  return res.json();
+}
+function prefersJsonImageEdit(cfg) {
+  return /ai\.t8star\.cn/i.test(cfg.apiBase || '');
+}
+function isFetchNetworkError(err) {
+  const msg = err?.message || String(err);
+  return msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('网络错误');
+}
 function appendImageRequestOptions(target, sizeSpec, quality, model) {
   if (isQwenImageGenerationModel(model)) {
     if (target instanceof FormData) {
@@ -805,10 +824,21 @@ async function editImage() {
       await addToHistory(currentEditResult); showToast('编辑完成');
       return;
     }
-    const fd = new FormData(); fd.append('image', editSourceFile); if (maskSourceFile) fd.append('mask', maskSourceFile); fd.append('prompt', prompt); fd.append('model', cfg.editModel); if (requestSize) requestSize = appendImageRequestOptions(fd, requestSize, quality, cfg.editModel); else appendImageRequestOptions(fd, null, quality, cfg.editModel); fd.append('n', '1');
-    const res = await fetch(apiUrl('/v1/images/edits'), { method: 'POST', headers: { 'Authorization': `Bearer ${cfg.apiKey}` }, body: fd });
-    if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
-    const data = await res.json(); const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    let data;
+    if (!maskSourceFile && prefersJsonImageEdit(cfg)) {
+      data = await callJsonImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile, requestSize, quality);
+    } else {
+      const fd = new FormData(); fd.append('image', editSourceFile); if (maskSourceFile) fd.append('mask', maskSourceFile); fd.append('prompt', prompt); fd.append('model', cfg.editModel); if (requestSize) requestSize = appendImageRequestOptions(fd, requestSize, quality, cfg.editModel); else appendImageRequestOptions(fd, null, quality, cfg.editModel); fd.append('n', '1');
+      try {
+        const res = await fetch(apiUrl('/v1/images/edits'), { method: 'POST', headers: { 'Authorization': `Bearer ${cfg.apiKey}` }, body: fd });
+        if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
+        data = await res.json();
+      } catch (err) {
+        if (maskSourceFile || !isFetchNetworkError(err)) throw err;
+        data = await callJsonImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile, requestSize, quality);
+      }
+    }
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
     let imgSrc = extractImage(data); if (!imgSrc) throw new Error('API 未返回图片数据');
     let b64 = imgSrc; if (imgSrc.startsWith('http')) { try { b64 = await blobToBase64(await (await fetch(imgSrc)).blob()); } catch {} }
     loading.style.display = 'none'; result.style.display = 'flex'; document.getElementById('edit-result-img').src = b64;
