@@ -41,8 +41,8 @@ function isQwenImageModel(model) { return /^qwen\/qwen-image/i.test(model || '')
 function isQwenImageEditModel(model) { return /^qwen\/qwen-image-edit/i.test(model || '') || /^qwen-image-edit/i.test(model || ''); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
 function appendQwenImageEditParams(target) {
-  target.num_inference_steps = 30;
-  target.guidance_scale = 6;
+  target.num_inference_steps = 25;
+  target.guidance_scale = 5;
 }
 function getQwenImageSize(sizeSpec) {
   const ratio = parseRatio(sizeSpec?.ratio || '1:1');
