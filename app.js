@@ -40,6 +40,10 @@ function apiUrl(path) { return `${getConfig().apiBase}${path}`; }
 function isQwenImageModel(model) { return /^qwen\/qwen-image/i.test(model || '') || /^qwen-image/i.test(model || ''); }
 function isQwenImageEditModel(model) { return /^qwen\/qwen-image-edit/i.test(model || '') || /^qwen-image-edit/i.test(model || ''); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
+function appendQwenImageEditParams(target) {
+  target.num_inference_steps = 30;
+  target.guidance_scale = 6;
+}
 function getQwenImageSize(sizeSpec) {
   const ratio = parseRatio(sizeSpec?.ratio || '1:1');
   if (ratio > 1.7) return '1664x928';
@@ -61,6 +65,7 @@ function fileToDataUrl(file) {
 async function callQwenImageEditGeneration(cfg, model, prompt, file) {
   const image = await fileToDataUrl(file);
   const body = { model, prompt, image };
+  appendQwenImageEditParams(body);
   const res = await fetch(apiUrl('/v1/images/generations'), {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -114,6 +119,7 @@ function appendImageRequestOptions(target, sizeSpec, quality, model) {
     return sizeSpec;
   }
   if (isQwenImageEditModel(model)) {
+    if (!(target instanceof FormData)) appendQwenImageEditParams(target);
     return sizeSpec;
   }
   if (sizeSpec) appendImageSize(target, sizeSpec);
