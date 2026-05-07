@@ -69,8 +69,14 @@ async function callQwenImageEditGeneration(cfg, model, prompt, file) {
   if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
   return res.json();
 }
-async function callJsonImageEditGeneration(cfg, model, prompt, file, sizeSpec, quality) {
-  const image = await fileToDataUrl(file);
+async function filesToDataUrls(files) {
+  return Promise.all(files.map(fileToDataUrl));
+}
+async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, quality) {
+  const list = Array.isArray(files) ? files : [files];
+  if (!list.length) throw new Error('请先上传要编辑的图片');
+  const images = await filesToDataUrls(list);
+  const image = images.length === 1 ? images[0] : images;
   const body = { model, prompt, image, n: 1 };
   appendImageRequestOptions(body, sizeSpec, quality, model);
   const res = await fetch(apiUrl('/v1/images/generations'), {
@@ -87,6 +93,16 @@ function prefersJsonImageEdit(cfg) {
 function isFetchNetworkError(err) {
   const msg = err?.message || String(err);
   return msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('网络错误');
+}
+function getTabEditFiles(tab, files, modelFiles) {
+  if (tab === 'style') {
+    const list = [];
+    if (styleRefFile) list.push(styleRefFile);
+    files.forEach(f => list.push(f));
+    return list.length ? list : files;
+  }
+  if (tab === 'clothing') return [...files, ...modelFiles];
+  return files;
 }
 function appendImageRequestOptions(target, sizeSpec, quality, model) {
   if (isQwenImageGenerationModel(model)) {
@@ -396,10 +412,16 @@ async function generateNew(tab) {
     for (let i = 0; i < count; i++) {
       const requestSize = size;
       if (hasFiles) {
+        const jsonEditFiles = getTabEditFiles(tab, files, modelFiles);
         if (isQwenImageEditModel(requestModel)) {
-          const editFile = (tab === 'style' && styleRefFile) ? styleRefFile : (files[0] || modelFiles[0]);
+          const editFile = jsonEditFiles[0];
           if (!editFile) throw new Error('请先上传要编辑的图片');
           tasks.push(callQwenImageEditGeneration(cfg, requestModel, fullPrompt, editFile));
+          continue;
+        }
+        if (tab === 'clothing' && files.length === 0) throw new Error(clothingMode === '模特试穿' ? '请先上传服装产品图；模特图是可选的' : '请先上传服装产品图');
+        if (prefersJsonImageEdit(cfg)) {
+          tasks.push(callJsonImageEditGeneration(cfg, requestModel, fullPrompt, jsonEditFiles, requestSize, quality));
           continue;
         }
         const fd = new FormData();
@@ -408,7 +430,6 @@ async function generateNew(tab) {
           if (mainFile) fd.append('image', mainFile);
           files.forEach(f => fd.append('image', f));
         } else if (tab === 'clothing') {
-          if (files.length === 0) throw new Error(clothingMode === '模特试穿' ? '请先上传服装产品图；模特图是可选的' : '请先上传服装产品图');
           // API receives every uploaded image. The prompt labels roles clearly:
           // garment/product images are the clothing source; model images are optional human references.
           files.forEach(f => fd.append('image', f));
@@ -422,7 +443,11 @@ async function generateNew(tab) {
         appendImageRequestOptions(fd, requestSize, quality, requestModel);
         tasks.push(fetch(apiUrl('/v1/images/edits'), {
           method: 'POST', headers: { 'Authorization': `Bearer ${cfg.apiKey}` }, body: fd
-        }).then(async r => { if (!r.ok) { const t = await r.text(); throw new Error(parseApiError(t, r.status)); } return r.json(); }));
+        }).then(async r => { if (!r.ok) { const t = await r.text(); throw new Error(parseApiError(t, r.status)); } return r.json(); })
+          .catch(err => {
+            if (!isFetchNetworkError(err)) throw err;
+            return callJsonImageEditGeneration(cfg, requestModel, fullPrompt, jsonEditFiles, requestSize, quality);
+          }));
       } else {
         if (!fullPrompt) throw new Error('请输入描述或上传图片');
         const body = { prompt: fullPrompt, model: requestModel, n: 1 };
