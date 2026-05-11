@@ -183,8 +183,8 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; line-heigh
 .result-grid-item:hover { border-color: var(--text-muted); }
 .result-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px; background: linear-gradient(transparent, rgba(0,0,0,0.5)); display: flex; justify-content: center; opacity: 0; transition: opacity 0.25s; }
 .result-state:hover .result-overlay { opacity: 1; }
-.result-actions { display: flex; gap: 8px; }
-.action-pill { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); color: #fff; font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer; transition: var(--transition); }
+.result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.action-pill { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); color: #fff; font-size: 12px; font-weight: 500; font-family: var(--font); white-space: nowrap; cursor: pointer; transition: var(--transition); }
 .action-pill:hover { background: rgba(0,0,0,0.6); border-color: rgba(255,255,255,0.35); }
 
 .gen-info { display: flex; gap: 20px; padding: 14px 4px 0; }

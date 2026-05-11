@@ -6,7 +6,7 @@
 <title>ImageForge Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260511-1">
 </head>
 <body>
 <div id="app">
@@ -385,7 +385,7 @@
           <div id="clothing-preview" class="preview-container empty">
             <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6.5 2L2 6l3 1v13h14V7l3-1-4.5-4h-4L12 4l-1.5-2z"/></svg></div><h3 class="empty-title">智能生成服装详情图组</h3><p class="empty-desc">上传服装产品图，AI 分析款式、面料与细节，自动生成白底精修、3D 立体展示及细节特写</p></div>
             <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在生成服装组图</p><p class="loading-sub">AI 正在分析服装特征，预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
-            <div class="result-state" style="display:none"><img id="clothing-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('clothing')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="fullscreen('clothing-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+            <div class="result-state" style="display:none"><img id="clothing-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('clothing')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button id="clothing-batch-download" class="action-pill" style="display:none" onclick="downloadResultZip('clothing')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg> 打包下载</button><button class="action-pill" onclick="fullscreen('clothing-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
           </div>
         </div>
       </div>
@@ -452,7 +452,7 @@
           <div id="refine-preview" class="preview-container empty">
             <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m-7.07-15.07l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div><h3 class="empty-title">一键智能产品精修</h3><p class="empty-desc">上传产品图片，AI 自动分析并优化画质、去除瑕疵、增强细节，让您的产品图更专业</p></div>
             <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p class="loading-text">正在精修图片</p><p class="loading-sub">AI 正在优化画质，预计 30-120 秒</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
-            <div class="result-state" style="display:none"><img id="refine-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('refine')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="fullscreen('refine-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
+            <div class="result-state" style="display:none"><img id="refine-result-img" src="" /><div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="dlResult('refine')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button id="refine-batch-download" class="action-pill" style="display:none" onclick="downloadResultZip('refine')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg> 打包下载</button><button class="action-pill" onclick="fullscreen('refine-result-img')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> 全屏</button></div></div></div>
           </div>
         </div>
       </div>
@@ -629,10 +629,10 @@
       <div class="modal-body">
         <div class="field-group"><label class="field-label">密钥 (API Key)</label><div class="input-with-toggle"><input id="setting-apikey" type="password" class="text-input" placeholder="输入你的 API Key"><button class="toggle-vis" onclick="toggleKeyVis()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div><span class="field-hint">密钥仅存储在浏览器本地，不会上传</span></div>
         <div class="field-group"><label class="field-label">接口地址 (API Base URL)</label><input id="setting-api-base" type="url" class="text-input" placeholder="https://apichat.jiazhuangai.com"><span class="field-hint">兼容 OpenAI 格式的中转接口地址，末尾不需要填写 /v1</span></div>
-        <div class="field-group"><label class="field-label">文生图模型</label><input id="setting-generation-model" type="text" class="text-input" list="image-model-options" placeholder="gpt-image-2"><span class="field-hint">纯文字生成图片使用，例如 gpt-image-2 或 qwen/qwen-image</span></div>
-        <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、遮罩编辑时使用，例如 gpt-image-2 或 qwen/qwen-image-edit；QWEN 模型最多支持 3 张参考图片</span></div>
+        <div class="field-group"><label class="field-label">文生图模型</label><input id="setting-generation-model" type="text" class="text-input" list="image-model-options" placeholder="gpt-image-2"><span class="field-hint">纯文字生成图片使用，例如 gpt-image-2 或 Qwen/Qwen-Image</span></div>
+        <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、遮罩编辑时使用，例如 gpt-image-2 或 Qwen/Qwen-Image-Edit-2509；QWEN 模型最多支持 3 张参考图片</span></div>
         <datalist id="image-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image"></datalist>
-        <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image-Edit"><option value="Qwen/Qwen-Image-Edit-2509"><option value="qwen/qwen-image-edit"><option value="qwen/qwen-image-edit-2511"></datalist>
+        <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image-Edit"><option value="Qwen/Qwen-Image-Edit-2509"></datalist>
         <div class="field-group"><label class="field-label">润色模型 <span class="label-opt">可选</span></label><input id="setting-polish-model" type="text" class="text-input" placeholder="留空默认 gpt-5.5"><span class="field-hint">AI 润色/反推使用的对话模型</span></div>
         <div class="field-group"><button class="secondary-btn full" onclick="testConnection()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> 测试连接</button><div id="conn-status" class="conn-status"></div></div>
       </div>
@@ -738,6 +738,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260507-6"></script>
+<script src="app.js?v=20260511-1"></script>
 </body>
 </html>

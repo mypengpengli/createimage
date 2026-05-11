@@ -10,6 +10,7 @@ let db = null;
 let currentGenResult = null;
 let currentEditResult = null;
 let currentDetailItem = null;
+const tabResultImages = {};
 let editSourceFile = null;
 let maskSourceFile = null;
 let historyFilter = 'all';
@@ -399,6 +400,8 @@ async function generateNew(tab) {
   const result = container.querySelector('.result-state');
   const empty = container.querySelector('.empty-state');
 
+  tabResultImages[tab] = [];
+  updateBatchDownloadButton(tab, 0);
   container.classList.remove('empty'); empty.style.display = 'none'; result.style.display = 'none'; loading.style.display = 'flex';
   btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex';
 
@@ -487,6 +490,8 @@ async function generateNew(tab) {
 
     loading.style.display = 'none'; result.style.display = 'flex';
     const resultImg = document.getElementById(`${tab}-result-img`);
+    tabResultImages[tab] = b64All;
+    updateBatchDownloadButton(tab, b64All.length);
     // Show first image in main preview
     resultImg.src = b64All[0];
     // If multiple images, show grid
@@ -688,6 +693,74 @@ function selectResultImg(thumb, tab) {
 
 // ===== Download / Fullscreen for new tabs =====
 function dlResult(tab) { const img = document.getElementById(`${tab}-result-img`); if (img?.src) downloadImage(img.src, `imageforge-${tab}-${ts()}.png`); }
+function updateBatchDownloadButton(tab, count) {
+  const btn = document.getElementById(`${tab}-batch-download`);
+  if (!btn) return;
+  btn.style.display = count > 1 ? 'inline-flex' : 'none';
+  btn.disabled = count <= 1;
+}
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-jszip-loader]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.JSZip), { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      return;
+    }
+    const urls = [
+      'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+      'https://cdn.bootcdn.net/ajax/libs/jszip/3.10.1/jszip.min.js'
+    ];
+    let index = 0;
+    const loadNext = () => {
+      if (index >= urls.length) return reject(new Error('打包组件加载失败'));
+      const script = document.createElement('script');
+      script.src = urls[index++];
+      script.async = true;
+      script.dataset.jszipLoader = 'true';
+      script.onload = () => resolve(window.JSZip);
+      script.onerror = () => { script.remove(); loadNext(); };
+      document.head.appendChild(script);
+    };
+    loadNext();
+  });
+}
+async function imageSourceToBlob(src) {
+  const res = await fetch(src);
+  if (!res.ok) throw new Error(`图片下载失败 HTTP ${res.status}`);
+  return res.blob();
+}
+function imageExtFromBlob(blob) {
+  const map = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+  return map[blob.type] || 'png';
+}
+async function downloadResultZip(tab) {
+  const images = tabResultImages[tab] || [];
+  if (images.length <= 1) return showToast('当前没有可打包的多张结果');
+  const btn = document.getElementById(`${tab}-batch-download`);
+  const original = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.innerHTML = '打包中…'; }
+  try {
+    const JSZipCtor = await loadJSZip();
+    if (!JSZipCtor) throw new Error('打包组件加载失败');
+    const zip = new JSZipCtor();
+    for (let i = 0; i < images.length; i++) {
+      const blob = await imageSourceToBlob(images[i]);
+      zip.file(`${tab}-${String(i + 1).padStart(2, '0')}.${imageExtFromBlob(blob)}`, blob);
+    }
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    fallbackDownload(url, `imageforge-${tab}-${ts()}.zip`);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    showToast(`已打包 ${images.length} 张图片`);
+  } catch (err) {
+    showToast('打包下载失败: ' + friendlyError(err), 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+  }
+}
 function fullscreen(imgId) { const src = document.getElementById(imgId)?.src; if (src) { document.getElementById('fullscreen-img').src = src; document.getElementById('fullscreen-overlay').style.display = 'flex'; } }
 // ===== AI Polish & Reverse (kept from original) =====
 const POLISH_SYSTEM = `You are a professional AI image prompt optimization expert. Optimize short descriptions into detailed, high-quality English image generation prompts. Output pure prompt text only.`;
