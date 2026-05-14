@@ -42,6 +42,13 @@ function modelId(model) { return String(model || '').trim().toLowerCase(); }
 function isQwenImageModel(model) { const id = modelId(model); return id === 'f-image' || id === 'fix-image' || id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
 function isQwenImageEditModel(model) { const id = modelId(model); return id === 'fix-image' || id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
+function normalizeConfiguredModel(model, type) {
+  const raw = String(model || '').trim();
+  const id = modelId(raw);
+  if (type === 'generation' && (id === 'qwen/qwen-image' || id === 'qwen-image')) return 'f-image';
+  if (type === 'edit' && (id === 'qwen/qwen-image-edit' || id === 'qwen/qwen-image-edit-2509' || id === 'qwen-image-edit' || id === 'qwen-image-edit-2509')) return 'fix-image';
+  return raw;
+}
 function appendQwenImageEditParams(target) {
   target.num_inference_steps = 50;
   target.guidance_scale = 2;
@@ -147,7 +154,16 @@ function deleteFromHistory(id) { return new Promise(res => { const tx = db.trans
 function clearAllHistory() { return new Promise(res => { const tx = db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).clear(); tx.oncomplete = () => { refreshHistory(); res(); }; }); }
 
 // ===== Settings =====
-function getConfig() { const legacyModel = localStorage.getItem('if_image_model') || ''; return { apiBase: normalizeApiBase(localStorage.getItem('if_api_base') || DEFAULT_API_BASE), apiKey: localStorage.getItem('if_apikey') || '', generationModel: localStorage.getItem('if_generation_model') || legacyModel || DEFAULT_GENERATION_MODEL, editModel: localStorage.getItem('if_edit_model') || legacyModel || DEFAULT_EDIT_MODEL, polishModel: localStorage.getItem('if_polish_model') || '' }; }
+function getConfig() {
+  const legacyModel = localStorage.getItem('if_image_model') || '';
+  const rawGenerationModel = localStorage.getItem('if_generation_model') || legacyModel || DEFAULT_GENERATION_MODEL;
+  const rawEditModel = localStorage.getItem('if_edit_model') || legacyModel || DEFAULT_EDIT_MODEL;
+  const generationModel = normalizeConfiguredModel(rawGenerationModel, 'generation') || DEFAULT_GENERATION_MODEL;
+  const editModel = normalizeConfiguredModel(rawEditModel, 'edit') || DEFAULT_EDIT_MODEL;
+  if (generationModel !== rawGenerationModel) localStorage.setItem('if_generation_model', generationModel);
+  if (editModel !== rawEditModel) localStorage.setItem('if_edit_model', editModel);
+  return { apiBase: normalizeApiBase(localStorage.getItem('if_api_base') || DEFAULT_API_BASE), apiKey: localStorage.getItem('if_apikey') || '', generationModel, editModel, polishModel: localStorage.getItem('if_polish_model') || '' };
+}
 function loadSettings() { const c = getConfig(); const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) k.value = c.apiKey; if (b) b.value = c.apiBase; if (gm) gm.value = c.generationModel; if (em) em.value = c.editModel; if (m) m.value = c.polishModel; }
 function saveSettings() { const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) localStorage.setItem('if_apikey', k.value.trim()); if (b) localStorage.setItem('if_api_base', normalizeApiBase(b.value)); if (gm) localStorage.setItem('if_generation_model', gm.value.trim() || DEFAULT_GENERATION_MODEL); if (em) localStorage.setItem('if_edit_model', em.value.trim() || DEFAULT_EDIT_MODEL); if (m) localStorage.setItem('if_polish_model', m.value.trim()); closeSettings(); updateEndpointIndicator(); showToast('配置已保存'); }
 function openSettings() { loadSettings(); document.getElementById('settings-modal').style.display = 'flex'; }
