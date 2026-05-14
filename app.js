@@ -39,27 +39,18 @@ function friendlyError(err) { const msg = err.message || String(err); if (msg.in
 function normalizeApiBase(value) { return (value || DEFAULT_API_BASE).trim().replace(/\/+$/, '').replace(/\/v1$/i, ''); }
 function apiUrl(path) { return `${getConfig().apiBase}${path}`; }
 function modelId(model) { return String(model || '').trim().toLowerCase(); }
-const UPSTREAM_VENDOR = ['Q', 'wen'].join('');
-const UPSTREAM_VENDOR_ID = UPSTREAM_VENDOR.toLowerCase();
-function upstreamImageModel() { return `${UPSTREAM_VENDOR}/${UPSTREAM_VENDOR}-Image`; }
-function upstreamImageEditModel() { return `${UPSTREAM_VENDOR}/${UPSTREAM_VENDOR}-Image-Edit-2509`; }
-function isAliasedImageModel(model) { const id = modelId(model); return id === 'f-image' || id === 'fix-image' || id.startsWith(`${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image`) || id.startsWith(`${UPSTREAM_VENDOR_ID}-image`); }
-function isAliasedImageEditModel(model) { const id = modelId(model); return id === 'fix-image' || id.startsWith(`${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image-edit`) || id.startsWith(`${UPSTREAM_VENDOR_ID}-image-edit`); }
+const LEGACY_VENDOR_ID = ['q', 'wen'].join('');
+function isAliasedImageModel(model) { const id = modelId(model); return id === 'f-image' || id === 'fix-image' || id.startsWith(`${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image`) || id.startsWith(`${LEGACY_VENDOR_ID}-image`); }
+function isAliasedImageEditModel(model) { const id = modelId(model); return id === 'fix-image' || id.startsWith(`${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image-edit`) || id.startsWith(`${LEGACY_VENDOR_ID}-image-edit`); }
 function isAliasedImageGenerationModel(model) { return isAliasedImageModel(model) && !isAliasedImageEditModel(model); }
 function normalizeConfiguredModel(model, type) {
   const raw = String(model || '').trim();
   const id = modelId(raw);
-  if (type === 'generation' && (id === `${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image` || id === `${UPSTREAM_VENDOR_ID}-image`)) return 'f-image';
-  if (type === 'edit' && (id === `${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image-edit` || id === `${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image-edit-2509` || id === `${UPSTREAM_VENDOR_ID}-image-edit` || id === `${UPSTREAM_VENDOR_ID}-image-edit-2509`)) return 'fix-image';
+  if (type === 'generation' && (id === `${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image` || id === `${LEGACY_VENDOR_ID}-image`)) return 'f-image';
+  if (type === 'edit' && (id === `${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image-edit` || id === `${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image-edit-2509` || id === `${LEGACY_VENDOR_ID}-image-edit` || id === `${LEGACY_VENDOR_ID}-image-edit-2509`)) return 'fix-image';
   return raw;
 }
-function getApiModel(model) {
-  const raw = String(model || '').trim();
-  const id = modelId(raw);
-  if (id === 'f-image') return upstreamImageModel();
-  if (id === 'fix-image') return upstreamImageEditModel();
-  return raw;
-}
+function getApiModel(model) { return String(model || '').trim(); }
 function appendAliasedImageEditParams(target) {
   target.num_inference_steps = 50;
   target.guidance_scale = 2;
