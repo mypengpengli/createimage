@@ -39,15 +39,16 @@ function friendlyError(err) { const msg = err.message || String(err); if (msg.in
 function normalizeApiBase(value) { return (value || DEFAULT_API_BASE).trim().replace(/\/+$/, '').replace(/\/v1$/i, ''); }
 function apiUrl(path) { return `${getConfig().apiBase}${path}`; }
 function modelId(model) { return String(model || '').trim().toLowerCase(); }
-const LEGACY_VENDOR_ID = ['q', 'wen'].join('');
-function isAliasedImageModel(model) { const id = modelId(model); return id === 'f-image' || id === 'fix-image' || id.startsWith(`${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image`) || id.startsWith(`${LEGACY_VENDOR_ID}-image`); }
-function isAliasedImageEditModel(model) { const id = modelId(model); return id === 'fix-image' || id.startsWith(`${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image-edit`) || id.startsWith(`${LEGACY_VENDOR_ID}-image-edit`); }
-function isAliasedImageGenerationModel(model) { return isAliasedImageModel(model) && !isAliasedImageEditModel(model); }
+const QWEN_IMAGE_MODEL = 'Qwen/Qwen-Image';
+const QWEN_IMAGE_EDIT_MODEL = 'Qwen/Qwen-Image-Edit-2509';
+function isQwenImageModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
+function isQwenImageEditModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
+function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
 function normalizeConfiguredModel(model, type) {
   const raw = String(model || '').trim();
   const id = modelId(raw);
-  if (type === 'generation' && (id === `${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image` || id === `${LEGACY_VENDOR_ID}-image`)) return 'f-image';
-  if (type === 'edit' && (id === `${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image-edit` || id === `${LEGACY_VENDOR_ID}/${LEGACY_VENDOR_ID}-image-edit-2509` || id === `${LEGACY_VENDOR_ID}-image-edit` || id === `${LEGACY_VENDOR_ID}-image-edit-2509`)) return 'fix-image';
+  if (type === 'generation' && id === 'f-image') return QWEN_IMAGE_MODEL;
+  if (type === 'edit' && id === 'fix-image') return QWEN_IMAGE_EDIT_MODEL;
   return raw;
 }
 function getApiModel(model) { return String(model || '').trim(); }
@@ -121,7 +122,7 @@ function getTabEditFiles(tab, files, modelFiles) {
   return files;
 }
 function appendImageRequestOptions(target, sizeSpec, quality, model) {
-  if (isAliasedImageGenerationModel(model)) {
+  if (isQwenImageGenerationModel(model)) {
     if (target instanceof FormData) {
       target.append('image_size', getAliasedImageSize(sizeSpec));
     } else {
@@ -129,7 +130,7 @@ function appendImageRequestOptions(target, sizeSpec, quality, model) {
     }
     return sizeSpec;
   }
-  if (isAliasedImageEditModel(model)) {
+  if (isQwenImageEditModel(model)) {
     if (!(target instanceof FormData)) appendAliasedImageEditParams(target);
     return sizeSpec;
   }
@@ -441,7 +442,7 @@ async function generateNew(tab) {
       const requestSize = size;
       if (hasFiles) {
         const jsonEditFiles = getTabEditFiles(tab, files, modelFiles);
-        if (isAliasedImageEditModel(requestModel)) {
+        if (isQwenImageEditModel(requestModel)) {
           const editFile = jsonEditFiles[0];
           if (!editFile) throw new Error('请先上传要编辑的图片');
           tasks.push(callAliasedImageEditGeneration(cfg, requestModel, fullPrompt, editFile));
@@ -937,7 +938,7 @@ async function editImage() {
       requestSize = /^\d+x\d+$/.test(sizeVal) ? makeSizeSpecFromApiSize(sizeVal) : makeSizeSpecFromRatio(parseRatio(sizeVal), sizeVal, sizeVal, false);
     }
     if (requestSize) prompt += getSizePrompt(requestSize);
-    if (isAliasedImageEditModel(cfg.editModel)) {
+    if (isQwenImageEditModel(cfg.editModel)) {
       const data = await callAliasedImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile);
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
       let imgSrc = extractImage(data); if (!imgSrc) throw new Error('API 未返回图片数据');
