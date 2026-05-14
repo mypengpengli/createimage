@@ -38,8 +38,9 @@ function updateEndpointIndicator() { const cfg = getConfig(); const el = documen
 function friendlyError(err) { const msg = err.message || String(err); if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return '网络错误：无法连接到服务。'; if (msg.includes('CORS')) return '跨域错误 (CORS)'; return msg; }
 function normalizeApiBase(value) { return (value || DEFAULT_API_BASE).trim().replace(/\/+$/, '').replace(/\/v1$/i, ''); }
 function apiUrl(path) { return `${getConfig().apiBase}${path}`; }
-function isQwenImageModel(model) { return /^qwen\/qwen-image/i.test(model || '') || /^qwen-image/i.test(model || ''); }
-function isQwenImageEditModel(model) { return /^qwen\/qwen-image-edit/i.test(model || '') || /^qwen-image-edit/i.test(model || ''); }
+function modelId(model) { return String(model || '').trim().toLowerCase(); }
+function isQwenImageModel(model) { const id = modelId(model); return id === 'f-image' || id === 'fix-image' || id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
+function isQwenImageEditModel(model) { const id = modelId(model); return id === 'fix-image' || id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
 function appendQwenImageEditParams(target) {
   target.num_inference_steps = 50;
