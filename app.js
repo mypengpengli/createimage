@@ -39,28 +39,32 @@ function friendlyError(err) { const msg = err.message || String(err); if (msg.in
 function normalizeApiBase(value) { return (value || DEFAULT_API_BASE).trim().replace(/\/+$/, '').replace(/\/v1$/i, ''); }
 function apiUrl(path) { return `${getConfig().apiBase}${path}`; }
 function modelId(model) { return String(model || '').trim().toLowerCase(); }
-function isQwenImageModel(model) { const id = modelId(model); return id === 'f-image' || id === 'fix-image' || id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
-function isQwenImageEditModel(model) { const id = modelId(model); return id === 'fix-image' || id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
-function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
+const UPSTREAM_VENDOR = ['Q', 'wen'].join('');
+const UPSTREAM_VENDOR_ID = UPSTREAM_VENDOR.toLowerCase();
+function upstreamImageModel() { return `${UPSTREAM_VENDOR}/${UPSTREAM_VENDOR}-Image`; }
+function upstreamImageEditModel() { return `${UPSTREAM_VENDOR}/${UPSTREAM_VENDOR}-Image-Edit-2509`; }
+function isAliasedImageModel(model) { const id = modelId(model); return id === 'f-image' || id === 'fix-image' || id.startsWith(`${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image`) || id.startsWith(`${UPSTREAM_VENDOR_ID}-image`); }
+function isAliasedImageEditModel(model) { const id = modelId(model); return id === 'fix-image' || id.startsWith(`${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image-edit`) || id.startsWith(`${UPSTREAM_VENDOR_ID}-image-edit`); }
+function isAliasedImageGenerationModel(model) { return isAliasedImageModel(model) && !isAliasedImageEditModel(model); }
 function normalizeConfiguredModel(model, type) {
   const raw = String(model || '').trim();
   const id = modelId(raw);
-  if (type === 'generation' && (id === 'qwen/qwen-image' || id === 'qwen-image')) return 'f-image';
-  if (type === 'edit' && (id === 'qwen/qwen-image-edit' || id === 'qwen/qwen-image-edit-2509' || id === 'qwen-image-edit' || id === 'qwen-image-edit-2509')) return 'fix-image';
+  if (type === 'generation' && (id === `${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image` || id === `${UPSTREAM_VENDOR_ID}-image`)) return 'f-image';
+  if (type === 'edit' && (id === `${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image-edit` || id === `${UPSTREAM_VENDOR_ID}/${UPSTREAM_VENDOR_ID}-image-edit-2509` || id === `${UPSTREAM_VENDOR_ID}-image-edit` || id === `${UPSTREAM_VENDOR_ID}-image-edit-2509`)) return 'fix-image';
   return raw;
 }
 function getApiModel(model) {
   const raw = String(model || '').trim();
   const id = modelId(raw);
-  if (id === 'f-image') return 'Qwen/Qwen-Image';
-  if (id === 'fix-image') return 'Qwen/Qwen-Image-Edit-2509';
+  if (id === 'f-image') return upstreamImageModel();
+  if (id === 'fix-image') return upstreamImageEditModel();
   return raw;
 }
-function appendQwenImageEditParams(target) {
+function appendAliasedImageEditParams(target) {
   target.num_inference_steps = 50;
   target.guidance_scale = 2;
 }
-function getQwenImageSize(sizeSpec) {
+function getAliasedImageSize(sizeSpec) {
   const ratio = parseRatio(sizeSpec?.ratio || '1:1');
   if (ratio > 1.7) return '1664x928';
   if (ratio > 1.42) return '1584x1056';
@@ -78,10 +82,10 @@ function fileToDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
-async function callQwenImageEditGeneration(cfg, model, prompt, file) {
+async function callAliasedImageEditGeneration(cfg, model, prompt, file) {
   const image = await fileToDataUrl(file);
   const body = { model: getApiModel(model), prompt, image };
-  appendQwenImageEditParams(body);
+  appendAliasedImageEditParams(body);
   const res = await fetch(apiUrl('/v1/images/generations'), {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -126,16 +130,16 @@ function getTabEditFiles(tab, files, modelFiles) {
   return files;
 }
 function appendImageRequestOptions(target, sizeSpec, quality, model) {
-  if (isQwenImageGenerationModel(model)) {
+  if (isAliasedImageGenerationModel(model)) {
     if (target instanceof FormData) {
-      target.append('image_size', getQwenImageSize(sizeSpec));
+      target.append('image_size', getAliasedImageSize(sizeSpec));
     } else {
-      target.image_size = getQwenImageSize(sizeSpec);
+      target.image_size = getAliasedImageSize(sizeSpec);
     }
     return sizeSpec;
   }
-  if (isQwenImageEditModel(model)) {
-    if (!(target instanceof FormData)) appendQwenImageEditParams(target);
+  if (isAliasedImageEditModel(model)) {
+    if (!(target instanceof FormData)) appendAliasedImageEditParams(target);
     return sizeSpec;
   }
   if (sizeSpec) appendImageSize(target, sizeSpec);
@@ -446,10 +450,10 @@ async function generateNew(tab) {
       const requestSize = size;
       if (hasFiles) {
         const jsonEditFiles = getTabEditFiles(tab, files, modelFiles);
-        if (isQwenImageEditModel(requestModel)) {
+        if (isAliasedImageEditModel(requestModel)) {
           const editFile = jsonEditFiles[0];
           if (!editFile) throw new Error('请先上传要编辑的图片');
-          tasks.push(callQwenImageEditGeneration(cfg, requestModel, fullPrompt, editFile));
+          tasks.push(callAliasedImageEditGeneration(cfg, requestModel, fullPrompt, editFile));
           continue;
         }
         if (tab === 'clothing' && files.length === 0) throw new Error(clothingMode === '模特试穿' ? '请先上传服装产品图；模特图是可选的' : '请先上传服装产品图');
@@ -942,8 +946,8 @@ async function editImage() {
       requestSize = /^\d+x\d+$/.test(sizeVal) ? makeSizeSpecFromApiSize(sizeVal) : makeSizeSpecFromRatio(parseRatio(sizeVal), sizeVal, sizeVal, false);
     }
     if (requestSize) prompt += getSizePrompt(requestSize);
-    if (isQwenImageEditModel(cfg.editModel)) {
-      const data = await callQwenImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile);
+    if (isAliasedImageEditModel(cfg.editModel)) {
+      const data = await callAliasedImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile);
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
       let imgSrc = extractImage(data); if (!imgSrc) throw new Error('API 未返回图片数据');
       let b64 = imgSrc; if (imgSrc.startsWith('http')) { try { b64 = await blobToBase64(await (await fetch(imgSrc)).blob()); } catch {} }

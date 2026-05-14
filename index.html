@@ -631,7 +631,7 @@
         <div class="field-group"><label class="field-label">密钥 (API Key)</label><div class="input-with-toggle"><input id="setting-apikey" type="password" class="text-input" placeholder="输入你的 API Key"><button class="toggle-vis" onclick="toggleKeyVis()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div><span class="field-hint">密钥仅存储在浏览器本地，不会上传</span></div>
         <div class="field-group"><label class="field-label">接口地址 (API Base URL)</label><input id="setting-api-base" type="url" class="text-input" placeholder="https://apichat.jiazhuangai.com"><span class="field-hint">兼容 OpenAI 格式的中转接口地址，末尾不需要填写 /v1</span></div>
         <div class="field-group"><label class="field-label">文生图模型</label><input id="setting-generation-model" type="text" class="text-input" list="image-model-options" placeholder="gpt-image-2"><span class="field-hint">纯文字生成图片使用，例如 gpt-image-2 或 f-image</span></div>
-        <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、遮罩编辑时使用，例如 gpt-image-2 或 fix-image；QWEN 模型最多支持 3 张参考图片</span></div>
+        <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、遮罩编辑时使用，例如 gpt-image-2 或 fix-image；fix-image 最多支持 3 张参考图片</span></div>
         <datalist id="image-model-options"><option value="gpt-image-2"><option value="f-image"></datalist>
         <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="fix-image"></datalist>
         <div class="field-group"><label class="field-label">润色模型 <span class="label-opt">可选</span></label><input id="setting-polish-model" type="text" class="text-input" placeholder="留空默认 gpt-5.5"><span class="field-hint">AI 润色/反推使用的对话模型</span></div>
@@ -739,6 +739,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260514-3"></script>
+<script src="app.js?v=20260514-4"></script>
 </body>
 </html>

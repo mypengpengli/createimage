@@ -22,17 +22,17 @@ python -m http.server 5200
 
 - `接口地址`：`https://apichat.jiazhuangai.com`
 - `API Key`：你的 New API Key
-- `文生图模型`：纯文字生成图片使用，例如 `gpt-image-2`、`Qwen/Qwen-Image`
-- `图生图/编辑模型`：上传参考图、商品图、遮罩编辑使用，例如 `gpt-image-2`、`Qwen/Qwen-Image-Edit`
+- `文生图模型`：纯文字生成图片使用，例如 `gpt-image-2`、`f-image`
+- `图生图/编辑模型`：上传参考图、商品图、遮罩编辑使用，例如 `gpt-image-2`、`fix-image`
 - `润色模型`：可选，对应聊天模型别名
 
 接口地址可以填根地址或带 `/v1` 的地址，前端会自动规整成根地址后再请求 `/v1/...`。
 
-Qwen 图片模型会按硅基流动接口格式请求：`Qwen/Qwen-Image` 走 `/v1/images/generations`，并使用硅基推荐的 `image_size` 参数。
+`f-image` 会按兼容接口格式请求 `/v1/images/generations`，并使用对应的 `image_size` 参数。
 
 硅基流动的图片返回可能是 `images[0].url`，页面已兼容该格式。
 
-硅基流动的 `Qwen/Qwen-Image-Edit` 使用 `/v1/images/generations`，请求体里的图片字段为 JSON `image`，不是 OpenAI 的 multipart `/v1/images/edits`；页面已按该格式处理。若你的中转仍返回 400，请在 New API 渠道里同时加入硅基文档示例模型 `Qwen/Qwen-Image-Edit-2509` 再测试。
+`fix-image` 使用 `/v1/images/generations`，请求体里的图片字段为 JSON `image`，不是 OpenAI 的 multipart `/v1/images/edits`；页面已按该格式处理。
 
 所有请求默认都经过你的 New API 中转站，不包含第三方直连配置。
 
