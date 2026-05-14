@@ -49,6 +49,13 @@ function normalizeConfiguredModel(model, type) {
   if (type === 'edit' && (id === 'qwen/qwen-image-edit' || id === 'qwen/qwen-image-edit-2509' || id === 'qwen-image-edit' || id === 'qwen-image-edit-2509')) return 'fix-image';
   return raw;
 }
+function getApiModel(model) {
+  const raw = String(model || '').trim();
+  const id = modelId(raw);
+  if (id === 'f-image') return 'Qwen/Qwen-Image';
+  if (id === 'fix-image') return 'Qwen/Qwen-Image-Edit-2509';
+  return raw;
+}
 function appendQwenImageEditParams(target) {
   target.num_inference_steps = 50;
   target.guidance_scale = 2;
@@ -73,7 +80,7 @@ function fileToDataUrl(file) {
 }
 async function callQwenImageEditGeneration(cfg, model, prompt, file) {
   const image = await fileToDataUrl(file);
-  const body = { model, prompt, image };
+  const body = { model: getApiModel(model), prompt, image };
   appendQwenImageEditParams(body);
   const res = await fetch(apiUrl('/v1/images/generations'), {
     method: 'POST',
@@ -91,7 +98,7 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
   if (!list.length) throw new Error('请先上传要编辑的图片');
   const images = await filesToDataUrls(list);
   const image = images.length === 1 ? images[0] : images;
-  const body = { model, prompt, image, n: 1 };
+  const body = { model: getApiModel(model), prompt, image, n: 1 };
   appendImageRequestOptions(body, sizeSpec, quality, model);
   const res = await fetch(apiUrl('/v1/images/generations'), {
     method: 'POST',
@@ -464,7 +471,7 @@ async function generateNew(tab) {
           files.forEach(f => fd.append('image', f));
         }
         fd.append('prompt', fullPrompt);
-        fd.append('model', requestModel);
+        fd.append('model', getApiModel(requestModel));
         fd.append('n', '1');
         appendImageRequestOptions(fd, requestSize, quality, requestModel);
         tasks.push(fetch(apiUrl('/v1/images/edits'), {
@@ -476,7 +483,7 @@ async function generateNew(tab) {
           }));
       } else {
         if (!fullPrompt) throw new Error('请输入描述或上传图片');
-        const body = { prompt: fullPrompt, model: requestModel, n: 1 };
+        const body = { prompt: fullPrompt, model: getApiModel(requestModel), n: 1 };
         appendImageRequestOptions(body, size, quality, requestModel);
         tasks.push(fetch(apiUrl('/v1/images/generations'), {
           method: 'POST',
@@ -858,7 +865,7 @@ async function generateImage() {
   const t0 = Date.now();
   try {
     prompt += getSizePrompt(size);
-    const body = { prompt, model: cfg.generationModel, n: 1 };
+    const body = { prompt, model: getApiModel(cfg.generationModel), n: 1 };
     appendImageRequestOptions(body, size, quality, cfg.generationModel);
     const res = await fetch(apiUrl('/v1/images/generations'), { method: 'POST', headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
@@ -949,7 +956,7 @@ async function editImage() {
     if (!maskSourceFile && prefersJsonImageEdit(cfg)) {
       data = await callJsonImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile, requestSize, quality);
     } else {
-      const fd = new FormData(); fd.append('image', editSourceFile); if (maskSourceFile) fd.append('mask', maskSourceFile); fd.append('prompt', prompt); fd.append('model', cfg.editModel); if (requestSize) requestSize = appendImageRequestOptions(fd, requestSize, quality, cfg.editModel); else appendImageRequestOptions(fd, null, quality, cfg.editModel); fd.append('n', '1');
+      const fd = new FormData(); fd.append('image', editSourceFile); if (maskSourceFile) fd.append('mask', maskSourceFile); fd.append('prompt', prompt); fd.append('model', getApiModel(cfg.editModel)); if (requestSize) requestSize = appendImageRequestOptions(fd, requestSize, quality, cfg.editModel); else appendImageRequestOptions(fd, null, quality, cfg.editModel); fd.append('n', '1');
       try {
         const res = await fetch(apiUrl('/v1/images/edits'), { method: 'POST', headers: { 'Authorization': `Bearer ${cfg.apiKey}` }, body: fd });
         if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
