@@ -422,7 +422,7 @@ async function generateNew(tab) {
 
   tabResultImages[tab] = [];
   updateBatchDownloadButton(tab, 0);
-  container.classList.remove('empty'); empty.style.display = 'none'; result.style.display = 'none'; loading.style.display = 'flex';
+  container.classList.remove('empty'); empty.style.display = 'none'; result.style.display = 'none'; result.classList.remove('has-result-grid'); loading.style.display = 'flex';
   btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex';
 
   const t0 = Date.now();
@@ -516,11 +516,13 @@ async function generateNew(tab) {
     resultImg.src = b64All[0];
     // If multiple images, show grid
     if (b64All.length > 1) {
+      result.classList.add('has-result-grid');
       let grid = result.querySelector('.result-grid');
       if (!grid) { grid = document.createElement('div'); grid.className = 'result-grid'; result.appendChild(grid); }
       grid.innerHTML = b64All.map((src, i) => `<img src="${src}" class="result-grid-item${i === 0 ? ' active' : ''}" onclick="selectResultImg(this, '${tab}')" />`).join('');
       grid.style.display = 'flex';
     } else {
+      result.classList.remove('has-result-grid');
       const grid = result.querySelector('.result-grid'); if (grid) grid.style.display = 'none';
     }
 
