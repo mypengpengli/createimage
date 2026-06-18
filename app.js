@@ -22,7 +22,7 @@ let currentVideoTask = null;
 const videoTempCache = new Map();
 
 // Multi-upload storage
-const uploads = { product: [], 'style-prod': [], clothing: [], 'clothing-model': [], refine: [] };
+const uploads = { product: [], 'style-prod': [], clothing: [], 'clothing-model': [], refine: [], video: [] };
 let styleRefFile = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -988,47 +988,107 @@ function initVideoModeUI() {
   updateVideoModeUI();
 }
 
+function getVideoUploadMax() {
+  const mode = document.getElementById('video-mode')?.value || 'text';
+  if (mode === 'image') return 1;
+  if (mode === 'keyframes') return 8;
+  return 6;
+}
+
+function handleVideoUpload(event) {
+  handleMultiUpload(event, 'video', getVideoUploadMax());
+}
+
 function updateVideoModeUI() {
   const mode = document.getElementById('video-mode')?.value || 'text';
-  const urlsSection = document.getElementById('video-url-section');
+  const refsSection = document.getElementById('video-ref-section');
+  const refsLabel = document.getElementById('video-ref-label');
+  const uploadText = document.getElementById('video-upload-text');
+  const uploadHint = document.getElementById('video-upload-hint');
   const urlsLabel = document.getElementById('video-url-label');
   const urlsHint = document.getElementById('video-url-hint');
   const prompt = document.getElementById('video-prompt');
   const copy = {
     text: {
-      showUrls: false,
+      showRefs: false,
       placeholder: 'A cinematic product video, slow camera push-in, glossy reflections, premium studio lighting, smooth motion',
-      label: '参考图片 URL',
-      hint: ''
+      refLabel: '参考图片',
+      uploadText: '上传参考图片',
+      uploadHint: '',
+      urlLabel: '图片 URL',
+      urlHint: ''
     },
     image: {
-      showUrls: true,
+      showRefs: true,
       placeholder: 'Animate the subject with subtle natural motion, slow cinematic camera movement, keep identity and composition stable',
-      label: '单张图片 URL',
-      hint: '填写公网可访问的 HTTPS 图片地址'
+      refLabel: '单张参考图片',
+      uploadText: '上传一张图片',
+      uploadHint: '本地上传优先；也可填写一个公网 URL',
+      urlLabel: '图片 URL',
+      urlHint: '本地上传会转为 data URL 发送；URL 可作为补充'
     },
     multi: {
-      showUrls: true,
+      showRefs: true,
       placeholder: 'Use the reference images to guide a consistent cinematic video with natural motion and stable subject identity',
-      label: '多张图片 URL',
-      hint: '每行一个公网 HTTPS 图片地址'
+      refLabel: '多张参考图片',
+      uploadText: '上传多张图片',
+      uploadHint: '至少两张；本地上传和 URL 可以混用',
+      urlLabel: '图片 URL',
+      urlHint: '每行一个公网 HTTPS 图片地址，可选'
     },
     keyframes: {
-      showUrls: true,
+      showRefs: true,
       placeholder: 'Create a smooth cinematic transition between the keyframes, maintaining visual consistency and natural camera movement',
-      label: '关键帧 URL',
-      hint: '至少两张，每行一个公网 HTTPS 图片地址'
+      refLabel: '关键帧图片',
+      uploadText: '上传关键帧',
+      uploadHint: '至少两张，按上传顺序作为关键帧',
+      urlLabel: '关键帧 URL',
+      urlHint: '每行一个公网 HTTPS 图片地址，可选'
     }
   };
   const cfg = copy[mode] || copy.text;
-  if (urlsSection) urlsSection.style.display = cfg.showUrls ? '' : 'none';
-  if (urlsLabel) urlsLabel.textContent = cfg.label;
-  if (urlsHint) urlsHint.textContent = cfg.hint;
+  if (refsSection) refsSection.style.display = cfg.showRefs ? '' : 'none';
+  if (refsLabel) refsLabel.textContent = cfg.refLabel;
+  if (uploadText) uploadText.textContent = cfg.uploadText;
+  if (uploadHint) uploadHint.textContent = cfg.uploadHint;
+  if (urlsLabel) urlsLabel.innerHTML = `${esc(cfg.urlLabel)} <span class="label-opt">可选</span>`;
+  if (urlsHint) urlsHint.textContent = cfg.urlHint;
   if (prompt && !prompt.value.trim()) prompt.placeholder = cfg.placeholder;
+  if (mode === 'image' && uploads.video.length > 1) {
+    uploads.video = uploads.video.slice(0, 1);
+    renderMultiPreviews('video');
+  }
 }
 
 function parseVideoImageUrls(value) {
   return String(value || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+}
+
+async function uploadVideoReferenceFile(file) {
+  const res = await fetch('/api/temp-upload', {
+    method: 'POST',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-File-Name': encodeURIComponent(file.name || 'reference.png')
+    },
+    body: file
+  });
+  if (!res.ok) throw new Error(`临时上传失败 ${res.status}`);
+  const data = await res.json();
+  if (!data?.url) throw new Error('临时上传未返回 URL');
+  return new URL(data.url, window.location.origin).href;
+}
+
+async function getVideoReferenceImages(files, urls) {
+  const refs = [];
+  for (const file of files) {
+    try {
+      refs.push(await uploadVideoReferenceFile(file));
+    } catch {
+      refs.push(await fileToDataUrl(file));
+    }
+  }
+  return [...refs, ...urls];
 }
 
 function getVideoDimensions() {
@@ -1100,13 +1160,16 @@ function renderVideoTasks() {
   }).join('');
 }
 
-function buildVideoRequestBody(cfg) {
+async function buildVideoRequestBody(cfg) {
   const prompt = document.getElementById('video-prompt')?.value.trim() || '';
   if (!prompt) throw new Error('请输入视频描述');
   const mode = document.getElementById('video-mode')?.value || 'text';
   const urls = parseVideoImageUrls(document.getElementById('video-image-urls')?.value);
-  if (mode === 'image' && urls.length < 1) throw new Error('请填写一张公网图片 URL');
-  if ((mode === 'multi' || mode === 'keyframes') && urls.length < 2) throw new Error('请至少填写两张公网图片 URL');
+  const localFiles = mode === 'text' ? [] : (uploads.video || []);
+  const localRefs = localFiles.slice(0, getVideoUploadMax());
+  const refs = await getVideoReferenceImages(localRefs, urls);
+  if (mode === 'image' && refs.length < 1) throw new Error('请上传一张参考图，或填写一个图片 URL');
+  if ((mode === 'multi' || mode === 'keyframes') && refs.length < 2) throw new Error('请至少上传两张参考图，或填写两个图片 URL');
 
   const dims = getVideoDimensions();
   const body = {
@@ -1121,10 +1184,10 @@ function buildVideoRequestBody(cfg) {
   const seed = parseInt(document.getElementById('video-seed')?.value, 10);
   if (negative) body.negative_prompt = negative;
   if (Number.isFinite(seed)) body.seed = seed;
-  if (mode === 'image') body.image = urls[0];
-  if (mode === 'multi') body.extra_body = { image: urls };
-  if (mode === 'keyframes') body.extra_body = { image: urls, mode: 'keyframes' };
-  return { body, prompt, mode, dims };
+  if (mode === 'image') body.image = refs[0];
+  if (mode === 'multi') body.extra_body = { image: refs };
+  if (mode === 'keyframes') body.extra_body = { image: refs, mode: 'keyframes' };
+  return { body, prompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length };
 }
 
 async function generateVideo() {
@@ -1135,7 +1198,7 @@ async function generateVideo() {
   setVideoLoading(true, '正在提交视频任务', '创建 Agnes Video V2.0 异步任务');
   if (btn) { btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex'; }
   try {
-    const request = buildVideoRequestBody(cfg);
+    const request = await buildVideoRequestBody(cfg);
     const res = await fetch(apiUrl('/v1/videos'), {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -1152,6 +1215,8 @@ async function generateVideo() {
       progress: data.progress || 0,
       prompt: request.prompt,
       mode: request.mode,
+      refCount: request.refCount,
+      localRefCount: request.localRefCount,
       size: data.size || `${request.dims.width}x${request.dims.height}`,
       seconds: data.seconds || String(request.body.num_frames / request.body.frame_rate)
     });
@@ -1483,7 +1548,8 @@ function setupDragDrop() {
     { id: 'clothing-model-file-input', key: 'clothing-model', max: 3 },
     { id: 'product-file-input', key: 'product', max: 6 },
     { id: 'style-prod-input', key: 'style-prod', max: 6 },
-    { id: 'refine-file-input', key: 'refine', max: 50 }
+    { id: 'refine-file-input', key: 'refine', max: 50 },
+    { id: 'video-file-input', key: 'video', max: 8 }
   ].forEach(({ id, key, max }) => {
     const input = document.getElementById(id);
     const z = input?.closest('.upload-zone');

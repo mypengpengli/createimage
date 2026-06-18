@@ -6,7 +6,7 @@
 <title>ImageForge Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20260618-3">
+<link rel="stylesheet" href="style.css?v=20260618-4">
 </head>
 <body>
 <div id="app">
@@ -600,9 +600,19 @@
               <option value="keyframes">关键帧动画</option>
             </select></div>
           </div>
-          <div id="video-url-section" class="panel-section" style="display:none">
-            <label id="video-url-label" class="field-label">参考图片 URL</label>
-            <textarea id="video-image-urls" class="prompt-input" rows="3" placeholder="https://example.com/image-1.png&#10;https://example.com/image-2.png"></textarea>
+          <div id="video-ref-section" class="panel-section" style="display:none">
+            <label id="video-ref-label" class="field-label">参考图片</label>
+            <div class="upload-zone compact" onclick="document.getElementById('video-file-input').click()">
+              <input type="file" id="video-file-input" accept="image/*" multiple style="display:none" onchange="handleVideoUpload(event)">
+              <div class="upload-placeholder compact" id="video-placeholder">
+                <div class="upload-icon-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                <span id="video-upload-text" class="upload-text">上传参考图片</span>
+                <span id="video-upload-hint" class="upload-hint">支持 JPG、PNG、WebP</span>
+              </div>
+              <div id="video-previews" class="multi-previews" style="display:none"></div>
+            </div>
+            <label id="video-url-label" class="field-label video-url-label">图片 URL <span class="label-opt">可选</span></label>
+            <textarea id="video-image-urls" class="prompt-input" rows="2" placeholder="https://example.com/image-1.png&#10;https://example.com/image-2.png"></textarea>
             <span id="video-url-hint" class="field-hint"></span>
           </div>
           <div class="panel-section">
@@ -852,6 +862,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260618-3"></script>
+<script src="app.js?v=20260618-4"></script>
 </body>
 </html>

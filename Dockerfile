@@ -1,4 +1,9 @@
-FROM nginx:1.27-alpine
+FROM node:22-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY index.html style.css app.js gallery-cases.js /usr/share/nginx/html/
+WORKDIR /app
+COPY index.html style.css app.js gallery-cases.js server.js ./
+
+ENV PORT=80
+EXPOSE 80
+
+CMD ["node", "server.js"]
