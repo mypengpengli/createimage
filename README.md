@@ -5,7 +5,7 @@
 - 默认接口地址：`https://apichat.jiazhuangai.com`
 - 默认文生图模型：`gpt-image-2`
 - 默认图生图/编辑模型：`gpt-image-2`
-- 润色/反推模型默认：`gpt-5.5`
+- 润色/反推模型默认：`agnes-2.0-flash`
 - API Key 保存在浏览器 `localStorage`，不会写进代码仓库
 
 ## 本地预览

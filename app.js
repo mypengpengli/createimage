@@ -4,6 +4,7 @@ const DEFAULT_API_BASE = 'https://apichat.jiazhuangai.com';
 const DEFAULT_GENERATION_MODEL = 'gpt-image-2';
 const DEFAULT_EDIT_MODEL = 'gpt-image-2';
 const DEFAULT_VIDEO_MODEL = 'agnes-video-v2.0';
+const DEFAULT_POLISH_MODEL = 'agnes-2.0-flash';
 const DB_NAME = 'imageforge';
 const DB_VERSION = 2;
 const STORE_NAME = 'history';
@@ -889,7 +890,7 @@ const POLISH_SYSTEM = `You are a professional AI image prompt optimization exper
 const REVERSE_SYSTEM = `You are an image analysis expert. Reverse-engineer a detailed English prompt from the given image. Output pure prompt text only.`;
 
 async function callChatAPI(systemPrompt, userContent, isVision) {
-  const cfg = getConfig(); const key = cfg.apiKey; const model = cfg.polishModel || 'gpt-5.5';
+  const cfg = getConfig(); const key = cfg.apiKey; const model = cfg.polishModel || DEFAULT_POLISH_MODEL;
   if (!key) { showToast('请先配置 API Key'); openSettings(); return null; }
   const messages = [{ role: 'system', content: systemPrompt }];
   if (isVision) messages.push({ role: 'user', content: userContent });

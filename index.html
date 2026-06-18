@@ -6,7 +6,7 @@
 <title>ImageForge Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20260618-4">
+<link rel="stylesheet" href="style.css?v=20260618-5">
 </head>
 <body>
 <div id="app">
@@ -753,7 +753,7 @@
         <datalist id="image-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image"><option value="agnes-image-2.1-flash"></datalist>
         <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image-Edit"><option value="Qwen/Qwen-Image-Edit-2509"><option value="agnes-image-2.1-flash"></datalist>
         <datalist id="video-model-options"><option value="agnes-video-v2.0"></datalist>
-        <div class="field-group"><label class="field-label">润色模型 <span class="label-opt">可选</span></label><input id="setting-polish-model" type="text" class="text-input" placeholder="留空默认 gpt-5.5"><span class="field-hint">AI 润色/反推使用的对话模型</span></div>
+        <div class="field-group"><label class="field-label">润色模型 <span class="label-opt">可选</span></label><input id="setting-polish-model" type="text" class="text-input" placeholder="留空默认 agnes-2.0-flash"><span class="field-hint">AI 润色/反推使用的对话模型</span></div>
         <div class="field-group"><button class="secondary-btn full" onclick="testConnection()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> 测试连接</button><div id="conn-status" class="conn-status"></div></div>
       </div>
       <div class="modal-footer"><button class="secondary-btn" onclick="closeSettings()">取消</button><button class="primary-btn compact" onclick="saveSettings()">保存配置</button></div>
@@ -862,6 +862,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260618-4"></script>
+<script src="app.js?v=20260618-5"></script>
 </body>
 </html>
