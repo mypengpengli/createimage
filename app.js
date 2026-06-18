@@ -41,20 +41,47 @@ function apiUrl(path) { return `${getConfig().apiBase}${path}`; }
 function modelId(model) { return String(model || '').trim().toLowerCase(); }
 const QWEN_IMAGE_MODEL = 'Qwen/Qwen-Image';
 const QWEN_IMAGE_EDIT_MODEL = 'Qwen/Qwen-Image-Edit-2509';
+const AGNES_IMAGE_MODEL = 'agnes-image-2.1-flash';
 function isQwenImageModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
 function isQwenImageEditModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
+function isAgnesImageModel(model) {
+  const id = modelId(model).replace(/_/g, '-');
+  return id === AGNES_IMAGE_MODEL || id === 'agnes-image-21-flash' || id === 'agnes-image-2-1-flash';
+}
 function normalizeConfiguredModel(model, type) {
   const raw = String(model || '').trim();
   const id = modelId(raw);
   if (type === 'generation' && id === 'f-image') return QWEN_IMAGE_MODEL;
   if (type === 'edit' && id === 'fix-image') return QWEN_IMAGE_EDIT_MODEL;
+  if (isAgnesImageModel(raw)) return AGNES_IMAGE_MODEL;
   return raw;
 }
-function getApiModel(model) { return String(model || '').trim(); }
+function getApiModel(model) { return isAgnesImageModel(model) ? AGNES_IMAGE_MODEL : String(model || '').trim(); }
 function appendAliasedImageEditParams(target) {
   target.num_inference_steps = 50;
   target.guidance_scale = 2;
+}
+function getAgnesImageSize(sizeSpec) {
+  const spec = sizeSpec || makeSizeSpecFromApiSize('1024x1024');
+  const label = String(spec.label || '').trim();
+  const customMatch = spec.custom && label.match(/^(\d{2,5})\s*[x×:]\s*(\d{2,5})$/i);
+  if (customMatch) return `${customMatch[1]}x${customMatch[2]}`;
+  const ratioText = String(spec.ratio || '1:1');
+  const commonSizes = {
+    '1:1': '1024x1024',
+    '4:3': '1024x768',
+    '3:2': '1536x1024',
+    '16:9': '1024x576',
+    '3:4': '768x1024',
+    '2:3': '1024x1536',
+    '9:16': '576x1024'
+  };
+  if (commonSizes[ratioText]) return commonSizes[ratioText];
+  const ratio = parseRatio(ratioText);
+  if (ratio > 1) return `1024x${Math.max(64, Math.round(1024 / ratio))}`;
+  if (ratio < 1) return `${Math.max(64, Math.round(1024 * ratio))}x1024`;
+  return '1024x1024';
 }
 function getAliasedImageSize(sizeSpec) {
   const ratio = parseRatio(sizeSpec?.ratio || '1:1');
@@ -72,6 +99,24 @@ function fileToDataUrl(file) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(reader.error || new Error('图片读取失败'));
     reader.readAsDataURL(file);
+  });
+}
+function fileToImageSizeSpec(file) {
+  return new Promise(resolve => {
+    if (!file) return resolve(null);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.naturalWidth || 1024;
+      const h = img.naturalHeight || 1024;
+      resolve(makeSizeSpecFromRatio(w / h, `${w}:${h}`, `auto ${w}×${h}`, false));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
   });
 }
 async function callAliasedImageEditGeneration(cfg, model, prompt, file) {
@@ -92,7 +137,23 @@ async function filesToDataUrls(files) {
 async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, quality) {
   const list = Array.isArray(files) ? files : [files];
   if (!list.length) throw new Error('请先上传要编辑的图片');
+  const agnesSizeSpec = isAgnesImageModel(model) && !sizeSpec ? await fileToImageSizeSpec(list[0]) : sizeSpec;
   const images = await filesToDataUrls(list);
+  if (isAgnesImageModel(model)) {
+    const body = {
+      model: getApiModel(model),
+      prompt,
+      size: getAgnesImageSize(agnesSizeSpec),
+      extra_body: { image: images, response_format: 'b64_json' }
+    };
+    const res = await fetch(apiUrl('/v1/images/generations'), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
+    return res.json();
+  }
   const image = images.length === 1 ? images[0] : images;
   const body = { model: getApiModel(model), prompt, image, n: 1 };
   appendImageRequestOptions(body, sizeSpec, quality, model);
@@ -122,6 +183,18 @@ function getTabEditFiles(tab, files, modelFiles) {
   return files;
 }
 function appendImageRequestOptions(target, sizeSpec, quality, model) {
+  if (isAgnesImageModel(model)) {
+    if (target instanceof FormData) {
+      target.append('size', getAgnesImageSize(sizeSpec));
+    } else {
+      delete target.n;
+      delete target.quality;
+      delete target.response_format;
+      target.size = getAgnesImageSize(sizeSpec);
+      target.return_base64 = true;
+    }
+    return sizeSpec || makeSizeSpecFromApiSize('1024x1024');
+  }
   if (isQwenImageGenerationModel(model)) {
     if (target instanceof FormData) {
       target.append('image_size', getAliasedImageSize(sizeSpec));
@@ -442,6 +515,11 @@ async function generateNew(tab) {
       const requestSize = size;
       if (hasFiles) {
         const jsonEditFiles = getTabEditFiles(tab, files, modelFiles);
+        if (isAgnesImageModel(requestModel)) {
+          if (tab === 'clothing' && files.length === 0) throw new Error(clothingMode === '模特试穿' ? '请先上传服装产品图；模特图是可选的' : '请先上传服装产品图');
+          tasks.push(callJsonImageEditGeneration(cfg, requestModel, fullPrompt, jsonEditFiles, requestSize, quality));
+          continue;
+        }
         if (isQwenImageEditModel(requestModel)) {
           const editFile = jsonEditFiles[0];
           if (!editFile) throw new Error('请先上传要编辑的图片');
@@ -685,7 +763,12 @@ function buildPrompt(tab, userPrompt) {
 }
 
 function parseApiError(text, status) {
-  try { const j = JSON.parse(text); return j.error?.message || `HTTP ${status}`; } catch { return `HTTP ${status}: ${text.slice(0, 200)}`; }
+  try {
+    const j = JSON.parse(text);
+    return j.error?.message || j.message || j.detail || `HTTP ${status}`;
+  } catch {
+    return `HTTP ${status}: ${text.slice(0, 200)}`;
+  }
 }
 
 function normalizeImageSource(value) {
@@ -940,6 +1023,17 @@ async function editImage() {
       requestSize = /^\d+x\d+$/.test(sizeVal) ? makeSizeSpecFromApiSize(sizeVal) : makeSizeSpecFromRatio(parseRatio(sizeVal), sizeVal, sizeVal, false);
     }
     if (requestSize) prompt += getSizePrompt(requestSize);
+    if (isAgnesImageModel(cfg.editModel)) {
+      if (maskSourceFile) throw new Error('Agnes Image 2.1 Flash 文档未提供遮罩编辑参数，请先移除遮罩图层');
+      const data = await callJsonImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile, requestSize, quality);
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      let imgSrc = extractImage(data); if (!imgSrc) throw new Error('API 未返回图片数据');
+      let b64 = imgSrc; if (imgSrc.startsWith('http')) { try { b64 = await blobToBase64(await (await fetch(imgSrc)).blob()); } catch {} }
+      loading.style.display = 'none'; result.style.display = 'flex'; document.getElementById('edit-result-img').src = b64;
+      currentEditResult = { type: 'edit', prompt, size: requestSize ? (requestSize.label || requestSize.apiSize) : 'auto', model: cfg.editModel, quality, imageData: b64, elapsed: +elapsed, createdAt: Date.now() };
+      await addToHistory(currentEditResult); showToast('编辑完成');
+      return;
+    }
     if (isQwenImageEditModel(cfg.editModel)) {
       const data = await callAliasedImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile);
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
