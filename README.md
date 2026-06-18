@@ -1,12 +1,20 @@
 # ImageForge Studio 复刻部署
 
-这是一个静态前端版本，直接调用你的 New API 兼容接口：
+这是一个静态前端版本，直接调用你的 New API 兼容接口。项目开箱即用，界面完整，部署轻量，很适合快速搭建自己的 AI 图片/视频生成站点：
 
 - 默认接口地址：`https://apichat.jiazhuangai.com`
 - 默认文生图模型：`gpt-image-2`
 - 默认图生图/编辑模型：`gpt-image-2`
+- 默认视频模型：`agnes-video-v2.0`
 - 润色/反推模型默认：`agnes-2.0-flash`
 - API Key 保存在浏览器 `localStorage`，不会写进代码仓库
+
+## 项目亮点
+
+- 已适配 Agnes 多个模型能力：`agnes-image-2.1-flash` 可用于文生图、图生图和图片编辑，`agnes-video-v2.0` 可用于视频任务，`agnes-2.0-flash` 可用于提示词润色和反推。
+- 同时兼容 `gpt-image-2`、`Qwen/Qwen-Image`、`Qwen/Qwen-Image-Edit` 等常见 OpenAI/New API 格式模型，适合接入自己的中转站。
+- 前端页面、站点名称、Logo、模型列表、接口地址、样式和部署域名都可以自由修改，你可以把它改造成自己的品牌站点、客户演示站、内部工具或商业化图片生成平台。
+- 无数据库、无复杂后端依赖，Docker、1Panel、Nginx 静态站点都能部署，迁移和二开成本很低。
 
 ## 本地预览
 
@@ -22,9 +30,10 @@ python -m http.server 5200
 
 - `接口地址`：`https://apichat.jiazhuangai.com`
 - `API Key`：你的 New API Key
-- `文生图模型`：纯文字生成图片使用，例如 `gpt-image-2`、`Qwen/Qwen-Image`
-- `图生图/编辑模型`：上传参考图、商品图、遮罩编辑使用，例如 `gpt-image-2`、`Qwen/Qwen-Image-Edit`
-- `润色模型`：可选，对应聊天模型别名
+- `文生图模型`：纯文字生成图片使用，例如 `gpt-image-2`、`Qwen/Qwen-Image`、`agnes-image-2.1-flash`
+- `图生图/编辑模型`：上传参考图、商品图、图片编辑使用，例如 `gpt-image-2`、`Qwen/Qwen-Image-Edit`、`agnes-image-2.1-flash`
+- `视频模型`：视频生成使用，例如 `agnes-video-v2.0`
+- `润色模型`：可选，对应聊天模型别名，例如 `agnes-2.0-flash`
 
 接口地址可以填根地址或带 `/v1` 的地址，前端会自动规整成根地址后再请求 `/v1/...`。
 
@@ -35,6 +44,8 @@ Qwen 图片模型会按硅基流动接口格式请求：`Qwen/Qwen-Image` 走 `/
 硅基流动的 `Qwen/Qwen-Image-Edit` 使用 `/v1/images/generations`，请求体里的图片字段为 JSON `image`，不是 OpenAI 的 multipart `/v1/images/edits`；页面已按该格式处理。若你的中转仍返回 400，请在 New API 渠道里同时加入硅基文档示例模型 `Qwen/Qwen-Image-Edit-2509` 再测试。
 
 所有请求默认都经过你的 New API 中转站，不包含第三方直连配置。
+
+Agnes 相关模型可以直接在设置弹窗里填写。如果使用 Agnes 官方接口，接口地址可填 `https://apihub.agnes-ai.com`；如果通过自己的 New API 中转站接入，则填写你的中转站地址即可。当前 Agnes 图片编辑已支持参考图/商品图编辑，遮罩图层请继续使用支持 multipart edits 的模型。
 
 ## Docker 部署
 

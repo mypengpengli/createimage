@@ -887,7 +887,9 @@ async function downloadResultZip(tab) {
 function fullscreen(imgId) { const src = document.getElementById(imgId)?.src; if (src) { document.getElementById('fullscreen-img').src = src; document.getElementById('fullscreen-overlay').style.display = 'flex'; } }
 // ===== AI Polish & Reverse (kept from original) =====
 const POLISH_SYSTEM = `You are a professional AI image prompt optimization expert. Optimize short descriptions into detailed, high-quality English image generation prompts. Output pure prompt text only.`;
+const VIDEO_POLISH_SYSTEM = `You are a professional AI video prompt optimization expert. Optimize short descriptions into detailed, high-quality English video generation prompts. Emphasize subject, motion, camera movement, lighting, composition, visual continuity, and cinematic timing. Output pure prompt text only.`;
 const REVERSE_SYSTEM = `You are an image analysis expert. Reverse-engineer a detailed English prompt from the given image. Output pure prompt text only.`;
+const POLISH_BUTTON_HTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 润色';
 
 async function callChatAPI(systemPrompt, userContent, isVision) {
   const cfg = getConfig(); const key = cfg.apiKey; const model = cfg.polishModel || DEFAULT_POLISH_MODEL;
@@ -907,7 +909,7 @@ async function polishGenPrompt() {
   const btn = document.getElementById('btn-polish-gen'); btn.disabled = true; btn.textContent = '润色中…';
   try { const result = await callChatAPI(POLISH_SYSTEM, text, false); if (result) { el.value = result; document.getElementById('prompt-count').textContent = result.length; showToast('润色完成'); } }
   catch (err) { showToast('润色失败: ' + err.message, 4000); }
-  finally { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 润色'; }
+  finally { btn.disabled = false; btn.innerHTML = POLISH_BUTTON_HTML; }
 }
 
 async function polishEditPrompt() {
@@ -915,7 +917,15 @@ async function polishEditPrompt() {
   const btn = document.getElementById('btn-polish-edit'); btn.disabled = true; btn.textContent = '润色中…';
   try { const result = await callChatAPI(POLISH_SYSTEM, text, false); if (result) { el.value = result; showToast('润色完成'); } }
   catch (err) { showToast('润色失败: ' + err.message, 4000); }
-  finally { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI 润色'; }
+  finally { btn.disabled = false; btn.innerHTML = POLISH_BUTTON_HTML; }
+}
+
+async function polishVideoPrompt() {
+  const el = document.getElementById('video-prompt'); const text = el.value.trim(); if (!text) return showToast('请先输入视频描述');
+  const btn = document.getElementById('btn-polish-video'); btn.disabled = true; btn.textContent = '润色中…';
+  try { const result = await callChatAPI(VIDEO_POLISH_SYSTEM, text, false); if (result) { el.value = result; showToast('润色完成'); } }
+  catch (err) { showToast('润色失败: ' + err.message, 4000); }
+  finally { btn.disabled = false; btn.innerHTML = POLISH_BUTTON_HTML; }
 }
 
 async function reversePrompt() {
