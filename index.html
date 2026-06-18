@@ -6,7 +6,7 @@
 <title>ImageForge Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20260618-2">
+<link rel="stylesheet" href="style.css?v=20260618-3">
 </head>
 <body>
 <div id="app">
@@ -52,6 +52,10 @@
       <button class="nav-btn" data-tab="edit" onclick="switchTab('edit')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         编辑
+      </button>
+      <button class="nav-btn" data-tab="video" onclick="switchTab('video')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M18 9l4-2v10l-4-2z"/></svg>
+        视频
       </button>
       <button class="nav-btn" data-tab="cases" onclick="switchTab('cases')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -582,6 +586,109 @@
       </div>
     </section>
 
+    <!-- ===== 视频生成 ===== -->
+    <section id="tab-video" class="tab-panel">
+      <div class="generate-layout">
+        <aside class="control-panel">
+          <div class="panel-brand"><span class="panel-brand-icon">▶</span><span>视频生成</span></div>
+          <div class="panel-section">
+            <label class="field-label">生成模式</label>
+            <div class="select-wrap"><select id="video-mode" class="select-input">
+              <option value="text">文生视频</option>
+              <option value="image">单图生视频</option>
+              <option value="multi">多图参考</option>
+              <option value="keyframes">关键帧动画</option>
+            </select></div>
+          </div>
+          <div id="video-url-section" class="panel-section" style="display:none">
+            <label id="video-url-label" class="field-label">参考图片 URL</label>
+            <textarea id="video-image-urls" class="prompt-input" rows="3" placeholder="https://example.com/image-1.png&#10;https://example.com/image-2.png"></textarea>
+            <span id="video-url-hint" class="field-hint"></span>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">视频描述</label>
+            <textarea id="video-prompt" class="prompt-input" rows="5" placeholder="A cinematic product video, slow camera push-in, glossy reflections, premium studio lighting, smooth motion"></textarea>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">画面比例</label>
+            <div class="select-wrap"><select id="video-ratio" class="select-input">
+              <option value="16:9">16:9 横版</option>
+              <option value="9:16">9:16 竖版</option>
+              <option value="1:1">1:1 方形</option>
+              <option value="4:3">4:3 横版</option>
+              <option value="3:4">3:4 竖版</option>
+            </select></div>
+          </div>
+          <div class="panel-section two-col-fields">
+            <div>
+              <label class="field-label">清晰度</label>
+              <div class="select-wrap"><select id="video-resolution" class="select-input">
+                <option value="720p">720p</option>
+                <option value="480p">480p</option>
+                <option value="1080p">1080p</option>
+              </select></div>
+            </div>
+            <div>
+              <label class="field-label">时长</label>
+              <div class="select-wrap"><select id="video-duration" class="select-input">
+                <option value="121">约 5 秒</option>
+                <option value="81">约 3 秒</option>
+                <option value="241">约 10 秒</option>
+                <option value="441">约 18 秒</option>
+              </select></div>
+            </div>
+          </div>
+          <div class="panel-section two-col-fields">
+            <div>
+              <label class="field-label">FPS</label>
+              <input id="video-fps" class="text-input" type="number" min="1" max="60" step="1" value="24">
+            </div>
+            <div>
+              <label class="field-label">Seed <span class="label-opt">可选</span></label>
+              <input id="video-seed" class="text-input" type="number" placeholder="随机">
+            </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">负面提示词 <span class="label-opt">可选</span></label>
+            <textarea id="video-negative" class="prompt-input" rows="2" placeholder="blurry, distorted, low quality, flicker"></textarea>
+          </div>
+          <button id="btn-video-generate" class="primary-btn" onclick="generateVideo()"><span class="btn-content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M18 9l4-2v10l-4-2z"/></svg> 创建视频任务</span><span class="btn-loading" style="display:none"><span class="btn-spinner"></span> 提交中…</span></button>
+          <div class="panel-section">
+            <label class="field-label">查询任务</label>
+            <div class="input-row">
+              <input id="video-query-id" class="text-input" type="text" placeholder="video_id 或 task_id">
+              <button class="secondary-btn compact" onclick="queryVideoTask()">查询</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="section-title-row">
+              <label class="field-label">本地任务</label>
+              <button class="text-btn danger" onclick="clearVideoTasks()">清空</button>
+            </div>
+            <div id="video-tasks-list" class="video-task-list"></div>
+          </div>
+        </aside>
+        <div class="preview-area">
+          <div id="video-preview" class="preview-container empty">
+            <div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M18 9l4-2v10l-4-2z"/></svg></div><h3 class="empty-title">视频生成</h3><p class="empty-desc">创建 Agnes Video V2.0 任务，完成后可直接播放，并尝试在浏览器临时缓存</p></div>
+            <div class="loading-state" style="display:none"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-pulse"></div></div><p id="video-loading-text" class="loading-text">正在生成视频</p><p id="video-loading-sub" class="loading-sub">等待 Agnes 返回结果</p><div class="loading-progress"><div class="loading-bar"></div></div></div>
+            <div class="result-state video-result-state" style="display:none">
+              <video id="video-result-player" class="video-player" controls playsinline preload="auto"></video>
+              <div class="result-overlay"><div class="result-actions"><button class="action-pill" onclick="downloadVideoResult()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载</button><button class="action-pill" onclick="copyVideoUrl()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg> 复制链接</button><button class="action-pill" onclick="openVideoResult()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> 打开</button></div></div>
+            </div>
+          </div>
+          <div class="video-info-card">
+            <div><span>状态</span><strong id="video-status">未提交</strong></div>
+            <div><span>Task</span><strong id="video-task-id">—</strong></div>
+            <div><span>Video</span><strong id="video-video-id">—</strong></div>
+            <div><span>参数</span><strong id="video-result-meta">—</strong></div>
+            <div><span>缓存</span><strong id="video-cache-status">—</strong></div>
+            <a id="video-result-link" class="video-result-link" href="#" target="_blank" rel="noopener"></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== 案例专区 ===== -->
     <section id="tab-cases" class="tab-panel">
       <div class="cases-page">
@@ -632,8 +739,10 @@
         <div class="field-group"><label class="field-label">接口地址 (API Base URL)</label><input id="setting-api-base" type="url" class="text-input" placeholder="https://apichat.jiazhuangai.com"><span class="field-hint">兼容 OpenAI 格式的中转接口地址；Agnes 可填 https://apihub.agnes-ai.com，末尾不需要 /v1</span></div>
         <div class="field-group"><label class="field-label">文生图模型</label><input id="setting-generation-model" type="text" class="text-input" list="image-model-options" placeholder="gpt-image-2"><span class="field-hint">纯文字生成图片使用，例如 gpt-image-2、Qwen/Qwen-Image 或 agnes-image-2.1-flash</span></div>
         <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、图片编辑时使用，例如 gpt-image-2、Qwen/Qwen-Image-Edit-2509 或 agnes-image-2.1-flash；Agnes 暂不支持遮罩图层</span></div>
+        <div class="field-group"><label class="field-label">视频模型</label><input id="setting-video-model" type="text" class="text-input" list="video-model-options" placeholder="agnes-video-v2.0"><span class="field-hint">视频生成使用，例如 agnes-video-v2.0；任务结果仅保存在浏览器本地记录</span></div>
         <datalist id="image-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image"><option value="agnes-image-2.1-flash"></datalist>
         <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image-Edit"><option value="Qwen/Qwen-Image-Edit-2509"><option value="agnes-image-2.1-flash"></datalist>
+        <datalist id="video-model-options"><option value="agnes-video-v2.0"></datalist>
         <div class="field-group"><label class="field-label">润色模型 <span class="label-opt">可选</span></label><input id="setting-polish-model" type="text" class="text-input" placeholder="留空默认 gpt-5.5"><span class="field-hint">AI 润色/反推使用的对话模型</span></div>
         <div class="field-group"><button class="secondary-btn full" onclick="testConnection()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> 测试连接</button><div id="conn-status" class="conn-status"></div></div>
       </div>
@@ -726,6 +835,10 @@
         <div class="more-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m-7.07-15.07l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
         <span>图片精修</span>
       </button>
+      <button class="mobile-more-item" onclick="mobileSwitchTab('video');closeMobileMore()">
+        <div class="more-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M18 9l4-2v10l-4-2z"/></svg></div>
+        <span>视频生成</span>
+      </button>
       <button class="mobile-more-item" onclick="mobileSwitchTab('cases');closeMobileMore()">
         <div class="more-icon-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
         <span>案例专区</span>
@@ -739,6 +852,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260618-2"></script>
+<script src="app.js?v=20260618-3"></script>
 </body>
 </html>

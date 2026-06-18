@@ -3,9 +3,12 @@
 const DEFAULT_API_BASE = 'https://apichat.jiazhuangai.com';
 const DEFAULT_GENERATION_MODEL = 'gpt-image-2';
 const DEFAULT_EDIT_MODEL = 'gpt-image-2';
+const DEFAULT_VIDEO_MODEL = 'agnes-video-v2.0';
 const DB_NAME = 'imageforge';
 const DB_VERSION = 2;
 const STORE_NAME = 'history';
+const VIDEO_TASKS_KEY = 'if_video_tasks';
+const VIDEO_TEMP_CACHE_LIMIT = 3;
 let db = null;
 let currentGenResult = null;
 let currentEditResult = null;
@@ -14,6 +17,9 @@ const tabResultImages = {};
 let editSourceFile = null;
 let maskSourceFile = null;
 let historyFilter = 'all';
+let activeVideoPollTimer = null;
+let currentVideoTask = null;
+const videoTempCache = new Map();
 
 // Multi-upload storage
 const uploads = { product: [], 'style-prod': [], clothing: [], 'clothing-model': [], refine: [] };
@@ -25,6 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
   bindPromptCounter();
   setupDragDrop();
   initClothingModeUI();
+  initVideoModeUI();
+  renderVideoTasks();
   checkFirstRun();
   const editSize = document.getElementById('edit-size');
   if (editSize) editSize.addEventListener('change', () => {
@@ -49,15 +57,21 @@ function isAgnesImageModel(model) {
   const id = modelId(model).replace(/_/g, '-');
   return id === AGNES_IMAGE_MODEL || id === 'agnes-image-21-flash' || id === 'agnes-image-2-1-flash';
 }
+function isAgnesVideoModel(model) {
+  const id = modelId(model).replace(/_/g, '-');
+  return id === DEFAULT_VIDEO_MODEL || id === 'agnes-video-v20' || id === 'agnes-video-20' || id === 'agnes-video-2-0';
+}
 function normalizeConfiguredModel(model, type) {
   const raw = String(model || '').trim();
   const id = modelId(raw);
   if (type === 'generation' && id === 'f-image') return QWEN_IMAGE_MODEL;
   if (type === 'edit' && id === 'fix-image') return QWEN_IMAGE_EDIT_MODEL;
   if (isAgnesImageModel(raw)) return AGNES_IMAGE_MODEL;
+  if (type === 'video' && isAgnesVideoModel(raw)) return DEFAULT_VIDEO_MODEL;
   return raw;
 }
 function getApiModel(model) { return isAgnesImageModel(model) ? AGNES_IMAGE_MODEL : String(model || '').trim(); }
+function getApiVideoModel(model) { return isAgnesVideoModel(model) ? DEFAULT_VIDEO_MODEL : String(model || '').trim(); }
 function appendAliasedImageEditParams(target) {
   target.num_inference_steps = 50;
   target.guidance_scale = 2;
@@ -234,14 +248,17 @@ function getConfig() {
   const legacyModel = localStorage.getItem('if_image_model') || '';
   const rawGenerationModel = localStorage.getItem('if_generation_model') || legacyModel || DEFAULT_GENERATION_MODEL;
   const rawEditModel = localStorage.getItem('if_edit_model') || legacyModel || DEFAULT_EDIT_MODEL;
+  const rawVideoModel = localStorage.getItem('if_video_model') || DEFAULT_VIDEO_MODEL;
   const generationModel = normalizeConfiguredModel(rawGenerationModel, 'generation') || DEFAULT_GENERATION_MODEL;
   const editModel = normalizeConfiguredModel(rawEditModel, 'edit') || DEFAULT_EDIT_MODEL;
+  const videoModel = normalizeConfiguredModel(rawVideoModel, 'video') || DEFAULT_VIDEO_MODEL;
   if (generationModel !== rawGenerationModel) localStorage.setItem('if_generation_model', generationModel);
   if (editModel !== rawEditModel) localStorage.setItem('if_edit_model', editModel);
-  return { apiBase: normalizeApiBase(localStorage.getItem('if_api_base') || DEFAULT_API_BASE), apiKey: localStorage.getItem('if_apikey') || '', generationModel, editModel, polishModel: localStorage.getItem('if_polish_model') || '' };
+  if (videoModel !== rawVideoModel) localStorage.setItem('if_video_model', videoModel);
+  return { apiBase: normalizeApiBase(localStorage.getItem('if_api_base') || DEFAULT_API_BASE), apiKey: localStorage.getItem('if_apikey') || '', generationModel, editModel, videoModel, polishModel: localStorage.getItem('if_polish_model') || '' };
 }
-function loadSettings() { const c = getConfig(); const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) k.value = c.apiKey; if (b) b.value = c.apiBase; if (gm) gm.value = c.generationModel; if (em) em.value = c.editModel; if (m) m.value = c.polishModel; }
-function saveSettings() { const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const m = document.getElementById('setting-polish-model'); if (k) localStorage.setItem('if_apikey', k.value.trim()); if (b) localStorage.setItem('if_api_base', normalizeApiBase(b.value)); if (gm) localStorage.setItem('if_generation_model', gm.value.trim() || DEFAULT_GENERATION_MODEL); if (em) localStorage.setItem('if_edit_model', em.value.trim() || DEFAULT_EDIT_MODEL); if (m) localStorage.setItem('if_polish_model', m.value.trim()); closeSettings(); updateEndpointIndicator(); showToast('配置已保存'); }
+function loadSettings() { const c = getConfig(); const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const vm = document.getElementById('setting-video-model'); const m = document.getElementById('setting-polish-model'); if (k) k.value = c.apiKey; if (b) b.value = c.apiBase; if (gm) gm.value = c.generationModel; if (em) em.value = c.editModel; if (vm) vm.value = c.videoModel; if (m) m.value = c.polishModel; }
+function saveSettings() { const k = document.getElementById('setting-apikey'); const b = document.getElementById('setting-api-base'); const gm = document.getElementById('setting-generation-model'); const em = document.getElementById('setting-edit-model'); const vm = document.getElementById('setting-video-model'); const m = document.getElementById('setting-polish-model'); if (k) localStorage.setItem('if_apikey', k.value.trim()); if (b) localStorage.setItem('if_api_base', normalizeApiBase(b.value)); if (gm) localStorage.setItem('if_generation_model', gm.value.trim() || DEFAULT_GENERATION_MODEL); if (em) localStorage.setItem('if_edit_model', em.value.trim() || DEFAULT_EDIT_MODEL); if (vm) localStorage.setItem('if_video_model', vm.value.trim() || DEFAULT_VIDEO_MODEL); if (m) localStorage.setItem('if_polish_model', m.value.trim()); closeSettings(); updateEndpointIndicator(); showToast('配置已保存'); }
 function openSettings() { loadSettings(); document.getElementById('settings-modal').style.display = 'flex'; }
 function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
 function closeSettingsOutside(e) { if (e.target === e.currentTarget) closeSettings(); }
@@ -249,7 +266,7 @@ async function testConnection() { const status = document.getElementById('conn-s
 function toggleKeyVis() { const i = document.getElementById('setting-apikey'); i.type = i.type === 'password' ? 'text' : 'password'; }
 
 // ===== Tabs =====
-function switchTab(tab) { document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); document.getElementById(`tab-${tab}`).classList.add('active'); document.querySelector(`.nav-btn[data-tab="${tab}"]`).classList.add('active'); if (tab === 'history') refreshHistory(); if (tab === 'cases') initCases(); }
+function switchTab(tab) { document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); document.getElementById(`tab-${tab}`).classList.add('active'); document.querySelector(`.nav-btn[data-tab="${tab}"]`)?.classList.add('active'); if (tab === 'history') refreshHistory(); if (tab === 'cases') initCases(); if (tab === 'video') renderVideoTasks(); }
 
 // ===== Toggle Buttons =====
 function toggleBtn(btn) {
@@ -963,6 +980,489 @@ async function generateImage() {
   finally { btn.disabled = false; btn.querySelector('.btn-content').style.display = 'flex'; btn.querySelector('.btn-loading').style.display = 'none'; }
 }
 
+// ===== Video =====
+function initVideoModeUI() {
+  const mode = document.getElementById('video-mode');
+  if (!mode) return;
+  mode.addEventListener('change', updateVideoModeUI);
+  updateVideoModeUI();
+}
+
+function updateVideoModeUI() {
+  const mode = document.getElementById('video-mode')?.value || 'text';
+  const urlsSection = document.getElementById('video-url-section');
+  const urlsLabel = document.getElementById('video-url-label');
+  const urlsHint = document.getElementById('video-url-hint');
+  const prompt = document.getElementById('video-prompt');
+  const copy = {
+    text: {
+      showUrls: false,
+      placeholder: 'A cinematic product video, slow camera push-in, glossy reflections, premium studio lighting, smooth motion',
+      label: '参考图片 URL',
+      hint: ''
+    },
+    image: {
+      showUrls: true,
+      placeholder: 'Animate the subject with subtle natural motion, slow cinematic camera movement, keep identity and composition stable',
+      label: '单张图片 URL',
+      hint: '填写公网可访问的 HTTPS 图片地址'
+    },
+    multi: {
+      showUrls: true,
+      placeholder: 'Use the reference images to guide a consistent cinematic video with natural motion and stable subject identity',
+      label: '多张图片 URL',
+      hint: '每行一个公网 HTTPS 图片地址'
+    },
+    keyframes: {
+      showUrls: true,
+      placeholder: 'Create a smooth cinematic transition between the keyframes, maintaining visual consistency and natural camera movement',
+      label: '关键帧 URL',
+      hint: '至少两张，每行一个公网 HTTPS 图片地址'
+    }
+  };
+  const cfg = copy[mode] || copy.text;
+  if (urlsSection) urlsSection.style.display = cfg.showUrls ? '' : 'none';
+  if (urlsLabel) urlsLabel.textContent = cfg.label;
+  if (urlsHint) urlsHint.textContent = cfg.hint;
+  if (prompt && !prompt.value.trim()) prompt.placeholder = cfg.placeholder;
+}
+
+function parseVideoImageUrls(value) {
+  return String(value || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function getVideoDimensions() {
+  const ratio = document.getElementById('video-ratio')?.value || '16:9';
+  const tier = document.getElementById('video-resolution')?.value || '720p';
+  const map = {
+    '480p': { '16:9': [832, 480], '9:16': [480, 832], '1:1': [640, 640], '4:3': [768, 576], '3:4': [576, 768] },
+    '720p': { '16:9': [1280, 720], '9:16': [720, 1280], '1:1': [768, 768], '4:3': [1024, 768], '3:4': [768, 1024] },
+    '1080p': { '16:9': [1920, 1080], '9:16': [1080, 1920], '1:1': [1024, 1024], '4:3': [1440, 1080], '3:4': [1080, 1440] }
+  };
+  const size = map[tier]?.[ratio] || map['720p']['16:9'];
+  return { width: size[0], height: size[1], ratio, tier };
+}
+
+function getSavedVideoTasks() {
+  try {
+    const list = JSON.parse(localStorage.getItem(VIDEO_TASKS_KEY) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveVideoTask(task) {
+  const list = getSavedVideoTasks();
+  const key = task.videoId || task.taskId || task.id;
+  const idx = list.findIndex(item => (item.videoId || item.taskId || item.id) === key);
+  const next = { ...(idx >= 0 ? list[idx] : {}), ...task, updatedAt: Date.now() };
+  if (!next.createdAt) next.createdAt = Date.now();
+  if (idx >= 0) list[idx] = next;
+  else list.unshift(next);
+  localStorage.setItem(VIDEO_TASKS_KEY, JSON.stringify(list.slice(0, 20)));
+  renderVideoTasks();
+  return next;
+}
+
+function clearVideoTasks() {
+  localStorage.removeItem(VIDEO_TASKS_KEY);
+  clearVideoTempCache();
+  renderVideoTasks();
+}
+
+function renderVideoTasks() {
+  const box = document.getElementById('video-tasks-list');
+  if (!box) return;
+  const tasks = getSavedVideoTasks();
+  if (!tasks.length) {
+    box.innerHTML = '<div class="video-task-empty">暂无视频任务</div>';
+    return;
+  }
+  box.innerHTML = tasks.map(task => {
+    const id = task.videoId || task.taskId || task.id || '';
+    const kind = task.videoId ? 'video' : 'task';
+    const status = task.status || 'queued';
+    const prompt = esc(task.prompt || '(video)');
+    const time = task.createdAt ? fmtTime(task.createdAt) : '';
+    const urlAction = task.videoUrl ? `<button class="text-btn accent" data-url="${escAttr(task.videoUrl)}" onclick="openSavedVideoUrl(this)">打开</button>` : '';
+    return `<div class="video-task-item">
+      <div class="video-task-main">
+        <div class="video-task-top"><span class="video-status ${escAttr(status)}">${esc(status)}</span><span>${esc(time)}</span></div>
+        <div class="video-task-prompt">${prompt}</div>
+        <div class="video-task-id">${esc(id)}</div>
+      </div>
+      <div class="video-task-actions">
+        ${urlAction}
+        <button class="text-btn" data-id="${escAttr(id)}" data-kind="${escAttr(kind)}" data-model="${escAttr(task.model || DEFAULT_VIDEO_MODEL)}" onclick="querySavedVideoTask(this)">查询</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildVideoRequestBody(cfg) {
+  const prompt = document.getElementById('video-prompt')?.value.trim() || '';
+  if (!prompt) throw new Error('请输入视频描述');
+  const mode = document.getElementById('video-mode')?.value || 'text';
+  const urls = parseVideoImageUrls(document.getElementById('video-image-urls')?.value);
+  if (mode === 'image' && urls.length < 1) throw new Error('请填写一张公网图片 URL');
+  if ((mode === 'multi' || mode === 'keyframes') && urls.length < 2) throw new Error('请至少填写两张公网图片 URL');
+
+  const dims = getVideoDimensions();
+  const body = {
+    model: getApiVideoModel(cfg.videoModel),
+    prompt,
+    width: dims.width,
+    height: dims.height,
+    num_frames: parseInt(document.getElementById('video-duration')?.value, 10) || 121,
+    frame_rate: parseFloat(document.getElementById('video-fps')?.value) || 24
+  };
+  const negative = document.getElementById('video-negative')?.value.trim();
+  const seed = parseInt(document.getElementById('video-seed')?.value, 10);
+  if (negative) body.negative_prompt = negative;
+  if (Number.isFinite(seed)) body.seed = seed;
+  if (mode === 'image') body.image = urls[0];
+  if (mode === 'multi') body.extra_body = { image: urls };
+  if (mode === 'keyframes') body.extra_body = { image: urls, mode: 'keyframes' };
+  return { body, prompt, mode, dims };
+}
+
+async function generateVideo() {
+  const cfg = getConfig();
+  if (!cfg.apiKey) { showToast('请先配置 API Key'); return openSettings(); }
+  const btn = document.getElementById('btn-video-generate');
+  setVideoCacheStatus('等待结果');
+  setVideoLoading(true, '正在提交视频任务', '创建 Agnes Video V2.0 异步任务');
+  if (btn) { btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex'; }
+  try {
+    const request = buildVideoRequestBody(cfg);
+    const res = await fetch(apiUrl('/v1/videos'), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(request.body)
+    });
+    if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
+    const data = await res.json();
+    const task = saveVideoTask({
+      id: data.id || data.task_id || '',
+      taskId: data.task_id || data.id || '',
+      videoId: data.video_id || '',
+      model: data.model || request.body.model,
+      status: data.status || 'queued',
+      progress: data.progress || 0,
+      prompt: request.prompt,
+      mode: request.mode,
+      size: data.size || `${request.dims.width}x${request.dims.height}`,
+      seconds: data.seconds || String(request.body.num_frames / request.body.frame_rate)
+    });
+    currentVideoTask = task;
+    updateVideoStatus(task);
+    startVideoPolling(task);
+    showToast('视频任务已提交');
+  } catch (err) {
+    setVideoLoading(false);
+    showVideoError(friendlyError(err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.querySelector('.btn-content').style.display = 'flex'; btn.querySelector('.btn-loading').style.display = 'none'; }
+  }
+}
+
+function setVideoLoading(active, title, sub) {
+  const container = document.getElementById('video-preview');
+  if (!container) return;
+  const empty = container.querySelector('.empty-state');
+  const loading = container.querySelector('.loading-state');
+  const result = container.querySelector('.result-state');
+  container.classList.toggle('empty', !active && !currentVideoTask?.videoUrl);
+  if (empty) empty.style.display = active ? 'none' : '';
+  if (loading) loading.style.display = active ? 'flex' : 'none';
+  if (result) result.style.display = 'none';
+  const titleEl = document.getElementById('video-loading-text');
+  const subEl = document.getElementById('video-loading-sub');
+  if (titleEl && title) titleEl.textContent = title;
+  if (subEl && sub) subEl.textContent = sub;
+}
+
+function showVideoError(message) {
+  const container = document.getElementById('video-preview');
+  const empty = container?.querySelector('.empty-state');
+  if (container) container.classList.add('empty');
+  if (empty) empty.style.display = 'flex';
+  showToast(message, 6000);
+}
+
+function updateVideoStatus(task) {
+  const status = document.getElementById('video-status');
+  const taskId = document.getElementById('video-task-id');
+  const videoId = document.getElementById('video-video-id');
+  const meta = document.getElementById('video-result-meta');
+  if (status) status.textContent = `${task.status || 'queued'}${Number.isFinite(task.progress) ? ` · ${task.progress}%` : ''}`;
+  if (taskId) taskId.textContent = task.taskId || task.id || '—';
+  if (videoId) videoId.textContent = task.videoId || '—';
+  if (meta) meta.textContent = [task.size, task.seconds ? `${task.seconds}s` : '', task.model].filter(Boolean).join(' · ');
+}
+
+function startVideoPolling(task) {
+  clearTimeout(activeVideoPollTimer);
+  const poll = async () => {
+    try {
+      const data = await fetchVideoTask(task);
+      const next = mergeVideoTask(task, data);
+      currentVideoTask = saveVideoTask(next);
+      updateVideoStatus(currentVideoTask);
+      if (currentVideoTask.status === 'completed' && currentVideoTask.videoUrl) {
+        showVideoResult(currentVideoTask);
+        showToast('视频生成完成');
+        return;
+      }
+      if (currentVideoTask.status === 'failed') {
+        setVideoLoading(false);
+        showVideoError(getVideoError(data) || '视频生成失败');
+        return;
+      }
+      setVideoLoading(true, `视频生成中 ${currentVideoTask.progress || 0}%`, currentVideoTask.videoId || currentVideoTask.taskId || '');
+      activeVideoPollTimer = setTimeout(poll, 5000);
+    } catch (err) {
+      setVideoLoading(true, '等待视频结果', friendlyError(err));
+      activeVideoPollTimer = setTimeout(poll, 8000);
+    }
+  };
+  setVideoLoading(true, '视频任务已提交', task.videoId || task.taskId || '');
+  activeVideoPollTimer = setTimeout(poll, 2500);
+}
+
+async function fetchVideoTask(task) {
+  const cfg = getConfig();
+  const model = getApiVideoModel(task.model || cfg.videoModel);
+  let url;
+  if (task.videoId) {
+    const qs = new URLSearchParams({ video_id: task.videoId, model_name: model });
+    url = apiUrl(`/agnesapi?${qs.toString()}`);
+  } else {
+    url = apiUrl(`/v1/videos/${encodeURIComponent(task.taskId || task.id)}`);
+  }
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Accept': 'application/json' } });
+  if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
+  return res.json();
+}
+
+function mergeVideoTask(task, data) {
+  const progress = Number(data.progress);
+  return {
+    ...task,
+    id: data.id || task.id,
+    taskId: data.task_id || data.id || task.taskId,
+    videoId: data.video_id || task.videoId,
+    model: data.model || task.model,
+    status: data.status || task.status,
+    progress: Number.isFinite(progress) ? progress : task.progress,
+    seconds: data.seconds || task.seconds,
+    size: data.size || task.size,
+    videoUrl: extractVideoUrl(data) || task.videoUrl,
+    error: data.error || task.error
+  };
+}
+
+function extractVideoUrl(data) {
+  if (!data) return '';
+  const direct = data.remixed_from_video_id || data.video_url || data.url || data.output_url || data.result_url;
+  if (typeof direct === 'string' && /^https?:\/\//i.test(direct)) return direct;
+  if (Array.isArray(data.data) && data.data[0]) return extractVideoUrl(data.data[0]);
+  if (data.output) return extractVideoUrl(typeof data.output === 'object' ? data.output : { url: data.output });
+  return '';
+}
+
+function getVideoError(data) {
+  if (!data?.error) return '';
+  if (typeof data.error === 'string') return data.error;
+  return data.error.message || JSON.stringify(data.error);
+}
+
+function formatFileSize(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function setVideoCacheStatus(text) {
+  const el = document.getElementById('video-cache-status');
+  if (el) el.textContent = text || '—';
+}
+
+function getVideoTempCache(url) {
+  if (!url) return null;
+  const hit = videoTempCache.get(url);
+  if (!hit) return null;
+  videoTempCache.delete(url);
+  videoTempCache.set(url, hit);
+  return hit;
+}
+
+function rememberVideoTempCache(url, blobUrl, size) {
+  const old = videoTempCache.get(url);
+  if (old?.blobUrl) URL.revokeObjectURL(old.blobUrl);
+  videoTempCache.set(url, { blobUrl, size, createdAt: Date.now() });
+  while (videoTempCache.size > VIDEO_TEMP_CACHE_LIMIT) {
+    const first = videoTempCache.keys().next().value;
+    const item = videoTempCache.get(first);
+    if (item?.blobUrl) URL.revokeObjectURL(item.blobUrl);
+    videoTempCache.delete(first);
+  }
+}
+
+function clearVideoTempCache() {
+  videoTempCache.forEach(item => {
+    if (item?.blobUrl) URL.revokeObjectURL(item.blobUrl);
+  });
+  videoTempCache.clear();
+  setVideoCacheStatus('—');
+}
+
+async function cacheVideoForPlayback(task) {
+  const remoteUrl = task?.videoUrl || '';
+  if (!remoteUrl || /^blob:/i.test(remoteUrl)) return '';
+  const cached = getVideoTempCache(remoteUrl);
+  if (cached?.blobUrl) {
+    setVideoCacheStatus(`临时缓存 ${formatFileSize(cached.size)}`.trim());
+    return cached.blobUrl;
+  }
+
+  setVideoCacheStatus('正在临时缓存');
+  try {
+    const res = await fetch(remoteUrl, { cache: 'force-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    rememberVideoTempCache(remoteUrl, blobUrl, blob.size);
+
+    const player = document.getElementById('video-result-player');
+    const stillCurrent = currentVideoTask?.videoUrl === remoteUrl;
+    const canSwapWithoutInterrupt = player && player.dataset.remoteUrl === remoteUrl && player.paused && player.currentTime < 0.25;
+    if (stillCurrent && canSwapWithoutInterrupt) {
+      player.src = blobUrl;
+      player.dataset.source = 'temp';
+      player.load();
+    }
+    setVideoCacheStatus(`临时缓存 ${formatFileSize(blob.size)}`.trim());
+    return blobUrl;
+  } catch {
+    setVideoCacheStatus('在线播放');
+    return '';
+  }
+}
+
+function showVideoResult(task) {
+  const container = document.getElementById('video-preview');
+  if (!container) return;
+  const loading = container.querySelector('.loading-state');
+  const empty = container.querySelector('.empty-state');
+  const result = container.querySelector('.result-state');
+  const player = document.getElementById('video-result-player');
+  const link = document.getElementById('video-result-link');
+  container.classList.remove('empty');
+  if (loading) loading.style.display = 'none';
+  if (empty) empty.style.display = 'none';
+  if (result) result.style.display = 'flex';
+  const cached = getVideoTempCache(task.videoUrl);
+  if (player) {
+    player.dataset.remoteUrl = task.videoUrl || '';
+    player.dataset.source = cached?.blobUrl ? 'temp' : 'remote';
+    player.preload = 'auto';
+    player.src = cached?.blobUrl || task.videoUrl || '';
+    player.load();
+  }
+  if (link) { link.href = task.videoUrl || '#'; link.textContent = task.videoUrl || ''; }
+  setVideoCacheStatus(cached?.blobUrl ? `临时缓存 ${formatFileSize(cached.size)}`.trim() : '在线播放');
+  updateVideoStatus(task);
+  cacheVideoForPlayback(task);
+}
+
+async function queryVideoTask() {
+  const id = document.getElementById('video-query-id')?.value.trim();
+  if (!id) return showToast('请输入 video_id 或 task_id');
+  const kind = id.startsWith('video_') ? 'video' : 'task';
+  await queryVideoTaskById(id, kind, getConfig().videoModel);
+}
+
+async function querySavedVideoTask(btn) {
+  const id = btn.dataset.id;
+  const saved = getSavedVideoTasks().find(item => (item.videoId || item.taskId || item.id) === id);
+  await queryVideoTaskObject(saved || {
+    videoId: btn.dataset.kind === 'video' ? id : '',
+    taskId: btn.dataset.kind === 'video' ? '' : id,
+    model: btn.dataset.model || DEFAULT_VIDEO_MODEL,
+    status: 'queued',
+    progress: 0,
+    prompt: '(queried video)'
+  });
+}
+
+async function queryVideoTaskById(id, kind, model) {
+  return queryVideoTaskObject({ videoId: kind === 'video' ? id : '', taskId: kind === 'video' ? '' : id, model: model || getConfig().videoModel, status: 'queued', progress: 0, prompt: '(queried video)' });
+}
+
+async function queryVideoTaskObject(task) {
+  const cfg = getConfig();
+  if (!cfg.apiKey) { showToast('请先配置 API Key'); return openSettings(); }
+  currentVideoTask = task;
+  setVideoCacheStatus('等待结果');
+  setVideoLoading(true, '正在查询视频任务', task.videoId || task.taskId || task.id || '');
+  try {
+    const data = await fetchVideoTask(task);
+    currentVideoTask = saveVideoTask(mergeVideoTask(task, data));
+    if (currentVideoTask.status === 'completed' && currentVideoTask.videoUrl) showVideoResult(currentVideoTask);
+    else startVideoPolling(currentVideoTask);
+  } catch (err) {
+    setVideoLoading(false);
+    showVideoError(friendlyError(err));
+  }
+}
+
+function openVideoResult() {
+  const url = currentVideoTask?.videoUrl || document.getElementById('video-result-player')?.src;
+  if (url) window.open(url, '_blank');
+}
+
+function openSavedVideoUrl(btn) {
+  const url = btn.dataset.url;
+  if (url) window.open(url, '_blank');
+}
+
+function copyVideoUrl() {
+  const url = currentVideoTask?.videoUrl || document.getElementById('video-result-player')?.src;
+  if (!url) return;
+  navigator.clipboard?.writeText(url);
+  showToast('视频链接已复制');
+}
+
+function downloadVideoResult() {
+  const originalUrl = currentVideoTask?.videoUrl || '';
+  const playerUrl = document.getElementById('video-result-player')?.src || '';
+  const cached = getVideoTempCache(originalUrl);
+  const url = cached?.blobUrl || playerUrl || originalUrl;
+  if (!url) return;
+  if (/^blob:/i.test(url)) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `imageforge-video-${ts()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+  fetch(url).then(r => r.blob()).then(blob => {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `imageforge-video-${ts()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  }).catch(() => window.open(url, '_blank'));
+}
+
 // ===== Edit (original) =====
 function setupDragDrop() {
   ['edit-upload-zone', 'mask-upload-zone'].forEach(id => {
@@ -1172,6 +1672,7 @@ document.addEventListener('keydown', e => {
     else if (tab === 'tab-style') generateNew('style');
     else if (tab === 'tab-clothing') generateNew('clothing');
     else if (tab === 'tab-refine') generateNew('refine');
+    else if (tab === 'tab-video') generateVideo();
   }
 });
 
@@ -1337,6 +1838,7 @@ function mobileSwitchTab(tab) {
   // Trigger tab-specific init
   if (tab === 'history') refreshHistory();
   if (tab === 'cases') initCases();
+  if (tab === 'video') renderVideoTasks();
 
   // Scroll to top
   window.scrollTo(0, 0);
