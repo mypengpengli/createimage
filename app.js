@@ -170,7 +170,6 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
       size: getAgnesImageSize(agnesSizeSpec),
       image: imageRefs.length === 1 ? primaryImage : imageRefs,
       images: imageRefs,
-      tags: ['img2img'],
       extra_body: { image: imageRefs, response_format: 'b64_json' }
     };
     console.debug('[ImageForge] Agnes image edit request', {
@@ -1128,13 +1127,13 @@ async function getVideoReferenceImages(files, urls) {
 function buildVideoPromptForMode(prompt, mode, refCount) {
   const clean = prompt.trim();
   if (mode === 'image') {
-    return `Use the provided reference image as the first frame and primary visual source. The generated video must follow this user motion prompt: ${clean}. Keep the subject identity, product appearance, composition, and style consistent with the reference image while applying the described motion and camera behavior.`;
+    return `${clean}\n\nUse the provided reference image as the first frame and primary visual source. Follow the user prompt above exactly, including requested motion, action, camera movement, style, background, color, scene changes, and atmosphere. Preserve the reference subject only where the user prompt does not explicitly change it.`;
   }
   if (mode === 'multi') {
-    return `Use the ${refCount} provided reference images as visual references. The generated video must follow this user prompt: ${clean}. Keep subject identity and style consistent across frames, and make the motion, transition, camera movement, and scene behavior match the prompt.`;
+    return `${clean}\n\nUse the ${refCount} provided reference images as visual references. Follow the user prompt above exactly, including requested motion, transition, camera movement, style, background, color, scene changes, and atmosphere. Preserve subject identity and style only where the user prompt does not explicitly change them.`;
   }
   if (mode === 'keyframes') {
-    return `Use the ${refCount} provided images as ordered keyframes from start to end. The generated video must follow this user prompt: ${clean}. Create a smooth cinematic transition between the keyframes with consistent lighting, subject identity, and natural motion.`;
+    return `${clean}\n\nUse the ${refCount} provided images as ordered keyframes from start to end. Follow the user prompt above exactly while creating a smooth cinematic transition between the keyframes with consistent lighting and natural motion.`;
   }
   return clean;
 }
@@ -1236,6 +1235,17 @@ async function buildVideoRequestBody(cfg) {
   if (mode === 'image') body.image = refs[0];
   if (mode === 'multi') body.extra_body = { image: refs };
   if (mode === 'keyframes') body.extra_body = { image: refs, mode: 'keyframes' };
+  if (mode !== 'text') {
+    body.extra_body = { ...(body.extra_body || {}), prompt: requestPrompt, user_prompt: prompt };
+  }
+  console.debug('[ImageForge] Agnes video request', {
+    mode,
+    model: body.model,
+    hasPrompt: Boolean(body.prompt),
+    promptPreview: body.prompt.slice(0, 160),
+    hasImage: Boolean(body.image),
+    extraBodyKeys: body.extra_body ? Object.keys(body.extra_body) : []
+  });
   return { body, prompt: requestPrompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length };
 }
 
