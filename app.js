@@ -163,11 +163,14 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
   if (isAgnesImageModel(model)) {
     const imageRefs = await filesToAgnesImageRefs(list);
     const agnesPrompt = buildAgnesImageEditPrompt(prompt, imageRefs.length);
+    const primaryImage = imageRefs[0];
     const body = {
       model: getApiModel(model),
       prompt: agnesPrompt,
       size: getAgnesImageSize(agnesSizeSpec),
-      image: imageRefs,
+      image: imageRefs.length === 1 ? primaryImage : imageRefs,
+      images: imageRefs,
+      tags: ['img2img'],
       extra_body: { image: imageRefs, response_format: 'b64_json' }
     };
     console.debug('[ImageForge] Agnes image edit request', {
@@ -175,7 +178,9 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
       size: body.size,
       imageCount: imageRefs.length,
       imageTransport: 'data-uri',
-      hasTopLevelImage: Array.isArray(body.image) && body.image.length > 0,
+      topLevelImageType: Array.isArray(body.image) ? 'array' : typeof body.image,
+      hasTopLevelImage: Boolean(Array.isArray(body.image) ? body.image.length : body.image),
+      hasTopLevelImages: Array.isArray(body.images) && body.images.length > 0,
       hasExtraBodyImage: Array.isArray(body.extra_body?.image) && body.extra_body.image.length > 0
     });
     const res = await fetch(apiUrl('/v1/images/generations'), {
