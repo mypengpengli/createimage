@@ -1813,7 +1813,7 @@ async function refreshHistory() {
   const grid = document.getElementById('history-grid');
   if (!filtered.length) { grid.innerHTML = `<div class="history-empty"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div><h3 class="empty-title">暂无记录</h3><p class="empty-desc">创作的图片会自动保存在这里</p></div>`; return; }
   const typeLabels = { generate: '生成', edit: '编辑', product: '商品图', style: '风格复刻', clothing: '服装', refine: '精修' };
-  grid.innerHTML = filtered.map(item => `<div class="history-card" onclick="openDetail(${item.id})"><img class="history-card-img" src="${item.imageData}" loading="lazy" /><div class="history-card-body"><div class="history-card-prompt">${esc(item.prompt)}</div><div class="history-card-meta"><span class="history-card-badge badge-gen">${typeLabels[item.type] || item.type}</span><span>${fmtTime(item.createdAt)}</span></div></div></div>`).join('');
+  grid.innerHTML = filtered.map(item => `<div class="history-card" onclick="openDetail(${item.id})"><img class="history-card-img" src="${item.imageData}" loading="lazy" /><div class="history-card-body"><div class="history-card-prompt">${esc(item.prompt)}</div><div class="history-card-meta"><span class="history-card-badge badge-gen">${typeLabels[item.type] || item.type}</span><span>${fmtTime(item.createdAt)}</span></div><button class="text-btn accent history-edit-btn" onclick="event.stopPropagation();sendHistoryToEdit(${item.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑</button></div></div>`).join('');
 }
 function filterHistory(type, btn) { historyFilter = type; document.querySelectorAll('.htab').forEach(b => b.classList.remove('active')); if (btn) btn.classList.add('active'); refreshHistory(); }
 async function clearHistory() { if (!confirm('确定要清空所有历史记录？')) return; await clearAllHistory(); showToast('已清空'); }
@@ -1824,6 +1824,22 @@ function closeDetail() { document.getElementById('detail-modal').style.display =
 function closeDetailOutside(e) { if (e.target === e.currentTarget) closeDetail(); }
 async function deleteHistoryItem() { if (!currentDetailItem || !confirm('确定删除？')) return; await deleteFromHistory(currentDetailItem.id); closeDetail(); showToast('已删除'); }
 function downloadDetailImage() { if (!currentDetailItem) return; downloadImage(currentDetailItem.imageData, `imageforge-${ts()}.png`); }
+function sendDetailToEdit() {
+  if (!currentDetailItem) return;
+  const item = currentDetailItem;
+  closeDetail();
+  setEditSourceFromImage(item.imageData, `imageforge-history-${item.id || ts()}.png`);
+}
+function sendHistoryToEdit(id) {
+  if (!db) return showToast('历史数据库未就绪');
+  const req = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(id);
+  req.onsuccess = () => {
+    const item = req.result;
+    if (!item?.imageData) return showToast('历史图片不存在');
+    setEditSourceFromImage(item.imageData, `imageforge-history-${id}.png`);
+  };
+  req.onerror = () => showToast('读取历史失败');
+}
 
 // ===== Utils =====
 function blobToBase64(blob) { return new Promise(r => { const fr = new FileReader(); fr.onloadend = () => r(fr.result); fr.readAsDataURL(blob); }); }
