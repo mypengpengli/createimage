@@ -149,6 +149,17 @@ async function callAliasedImageEditGeneration(cfg, model, prompt, file) {
 async function filesToDataUrls(files) {
   return Promise.all(files.map(fileToDataUrl));
 }
+async function filesToAgnesImageRefs(files) {
+  const refs = [];
+  for (const file of files) {
+    try {
+      refs.push(await uploadVideoReferenceFile(file));
+    } catch {
+      refs.push(await fileToDataUrl(file));
+    }
+  }
+  return refs;
+}
 function buildAgnesImageEditPrompt(prompt, refCount) {
   const refText = refCount > 1 ? `the ${refCount} provided reference images` : 'the provided reference image';
   return `Use ${refText} as the visual source for this image-to-image edit. Follow this edit instruction: ${prompt}. Preserve the original subject identity, product shape, composition, camera angle, and important visual details unless the instruction explicitly changes them.`;
@@ -157,15 +168,15 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
   const list = Array.isArray(files) ? files : [files];
   if (!list.length) throw new Error('请先上传要编辑的图片');
   const agnesSizeSpec = isAgnesImageModel(model) && !sizeSpec ? await fileToImageSizeSpec(list[0]) : sizeSpec;
-  const images = await filesToDataUrls(list);
   if (isAgnesImageModel(model)) {
-    const agnesPrompt = buildAgnesImageEditPrompt(prompt, images.length);
+    const imageRefs = await filesToAgnesImageRefs(list);
+    const agnesPrompt = buildAgnesImageEditPrompt(prompt, imageRefs.length);
     const body = {
       model: getApiModel(model),
       prompt: agnesPrompt,
       size: getAgnesImageSize(agnesSizeSpec),
-      return_base64: true,
-      extra_body: { image: images, response_format: 'b64_json' }
+      image: imageRefs,
+      extra_body: { image: imageRefs, response_format: 'b64_json' }
     };
     const res = await fetch(apiUrl('/v1/images/generations'), {
       method: 'POST',
@@ -175,6 +186,7 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
     if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
     return res.json();
   }
+  const images = await filesToDataUrls(list);
   const image = images.length === 1 ? images[0] : images;
   const body = { model: getApiModel(model), prompt, image, n: 1 };
   appendImageRequestOptions(body, sizeSpec, quality, model);
@@ -1101,8 +1113,8 @@ async function getVideoReferenceImages(files, urls) {
   for (const file of files) {
     try {
       refs.push(await uploadVideoReferenceFile(file));
-    } catch (err) {
-      throw new Error(`本地参考图需要先上传为可访问 URL，但临时上传失败：${friendlyError(err)}。请确认使用 Docker/server.js 部署，或改填公网图片 URL。`);
+    } catch {
+      refs.push(await fileToDataUrl(file));
     }
   }
   return [...refs, ...urls];
