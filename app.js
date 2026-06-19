@@ -150,15 +150,7 @@ async function filesToDataUrls(files) {
   return Promise.all(files.map(fileToDataUrl));
 }
 async function filesToAgnesImageRefs(files) {
-  const refs = [];
-  for (const file of files) {
-    try {
-      refs.push(await uploadVideoReferenceFile(file));
-    } catch {
-      refs.push(await fileToDataUrl(file));
-    }
-  }
-  return refs;
+  return filesToDataUrls(files);
 }
 function buildAgnesImageEditPrompt(prompt, refCount) {
   const refText = refCount > 1 ? `the ${refCount} provided reference images` : 'the provided reference image';
@@ -178,6 +170,14 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
       image: imageRefs,
       extra_body: { image: imageRefs, response_format: 'b64_json' }
     };
+    console.debug('[ImageForge] Agnes image edit request', {
+      model: body.model,
+      size: body.size,
+      imageCount: imageRefs.length,
+      imageTransport: 'data-uri',
+      hasTopLevelImage: Array.isArray(body.image) && body.image.length > 0,
+      hasExtraBodyImage: Array.isArray(body.extra_body?.image) && body.extra_body.image.length > 0
+    });
     const res = await fetch(apiUrl('/v1/images/generations'), {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
