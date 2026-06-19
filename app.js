@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDragDrop();
   initClothingModeUI();
   initVideoModeUI();
+  ensureContinueEditButtons();
   renderVideoTasks();
   checkFirstRun();
   const editSize = document.getElementById('edit-size');
@@ -1747,7 +1748,55 @@ function fallbackDownload(url, name) {
 function ts() { return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19); }
 function downloadCurrent() { if (currentGenResult?.imageData) downloadImage(currentGenResult.imageData, `imageforge-${ts()}.png`); }
 function downloadEditResult() { if (currentEditResult?.imageData) downloadImage(currentEditResult.imageData, `imageforge-edit-${ts()}.png`); }
-function sendToEdit() { if (!currentGenResult?.imageData) return; fetch(currentGenResult.imageData).then(r => r.blob()).then(blob => { editSourceFile = new File([blob], 'generated.png', { type: 'image/png' }); const img = document.getElementById('edit-upload-preview'); img.src = currentGenResult.imageData; img.style.display = 'block'; document.getElementById('edit-upload-placeholder').style.display = 'none'; switchTab('edit'); showToast('已发送到编辑'); }); }
+function editButtonHtml() {
+  return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑';
+}
+function ensureContinueEditButtons() {
+  ['product', 'style', 'clothing', 'refine', 'edit'].forEach(tab => {
+    const imgId = tab === 'edit' ? 'edit-result-img' : `${tab}-result-img`;
+    const img = document.getElementById(imgId);
+    const actions = img?.closest('.result-state')?.querySelector('.result-actions');
+    if (!actions || actions.querySelector(`[data-send-edit="${tab}"]`)) return;
+    const btn = document.createElement('button');
+    btn.className = 'action-pill';
+    btn.dataset.sendEdit = tab;
+    btn.type = 'button';
+    btn.innerHTML = editButtonHtml();
+    btn.onclick = () => sendResultToEdit(tab);
+    const first = actions.querySelector('.action-pill');
+    if (first?.nextSibling) actions.insertBefore(btn, first.nextSibling);
+    else actions.appendChild(btn);
+  });
+}
+async function imageSrcToEditFile(src, name) {
+  const res = await fetch(src);
+  if (!res.ok) throw new Error(`图片读取失败 HTTP ${res.status}`);
+  const blob = await res.blob();
+  return new File([blob], name, { type: blob.type || 'image/png' });
+}
+async function setEditSourceFromImage(src, name = 'generated.png') {
+  if (!src) return showToast('没有可编辑的图片');
+  try {
+    const file = await imageSrcToEditFile(src, name);
+    processEditUpload(file);
+    if (maskSourceFile) clearEditUpload('mask');
+    mobileSwitchTab('edit');
+    showToast('已作为原图发送到编辑');
+  } catch (err) {
+    showToast('发送到编辑失败: ' + friendlyError(err), 5000);
+  }
+}
+function getResultImageSrc(tab) {
+  if (tab === 'generate') return currentGenResult?.imageData || document.getElementById('gen-result-img')?.src || '';
+  if (tab === 'edit') return currentEditResult?.imageData || document.getElementById('edit-result-img')?.src || '';
+  return document.getElementById(`${tab}-result-img`)?.src || '';
+}
+function sendResultToEdit(tab) {
+  const src = getResultImageSrc(tab);
+  const name = `imageforge-${tab}-${ts()}.png`;
+  return setEditSourceFromImage(src, name);
+}
+function sendToEdit() { return sendResultToEdit('generate'); }
 
 // ===== Fullscreen =====
 function openFullscreen() { const s = document.getElementById('gen-result-img').src; if (s) { document.getElementById('fullscreen-img').src = s; document.getElementById('fullscreen-overlay').style.display = 'flex'; } }
