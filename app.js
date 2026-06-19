@@ -149,16 +149,22 @@ async function callAliasedImageEditGeneration(cfg, model, prompt, file) {
 async function filesToDataUrls(files) {
   return Promise.all(files.map(fileToDataUrl));
 }
+function buildAgnesImageEditPrompt(prompt, refCount) {
+  const refText = refCount > 1 ? `the ${refCount} provided reference images` : 'the provided reference image';
+  return `Use ${refText} as the visual source for this image-to-image edit. Follow this edit instruction: ${prompt}. Preserve the original subject identity, product shape, composition, camera angle, and important visual details unless the instruction explicitly changes them.`;
+}
 async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, quality) {
   const list = Array.isArray(files) ? files : [files];
   if (!list.length) throw new Error('请先上传要编辑的图片');
   const agnesSizeSpec = isAgnesImageModel(model) && !sizeSpec ? await fileToImageSizeSpec(list[0]) : sizeSpec;
   const images = await filesToDataUrls(list);
   if (isAgnesImageModel(model)) {
+    const agnesPrompt = buildAgnesImageEditPrompt(prompt, images.length);
     const body = {
       model: getApiModel(model),
-      prompt,
+      prompt: agnesPrompt,
       size: getAgnesImageSize(agnesSizeSpec),
+      return_base64: true,
       extra_body: { image: images, response_format: 'b64_json' }
     };
     const res = await fetch(apiUrl('/v1/images/generations'), {
@@ -1095,11 +1101,25 @@ async function getVideoReferenceImages(files, urls) {
   for (const file of files) {
     try {
       refs.push(await uploadVideoReferenceFile(file));
-    } catch {
-      refs.push(await fileToDataUrl(file));
+    } catch (err) {
+      throw new Error(`本地参考图需要先上传为可访问 URL，但临时上传失败：${friendlyError(err)}。请确认使用 Docker/server.js 部署，或改填公网图片 URL。`);
     }
   }
   return [...refs, ...urls];
+}
+
+function buildVideoPromptForMode(prompt, mode, refCount) {
+  const clean = prompt.trim();
+  if (mode === 'image') {
+    return `Use the provided reference image as the first frame and primary visual source. The generated video must follow this user motion prompt: ${clean}. Keep the subject identity, product appearance, composition, and style consistent with the reference image while applying the described motion and camera behavior.`;
+  }
+  if (mode === 'multi') {
+    return `Use the ${refCount} provided reference images as visual references. The generated video must follow this user prompt: ${clean}. Keep subject identity and style consistent across frames, and make the motion, transition, camera movement, and scene behavior match the prompt.`;
+  }
+  if (mode === 'keyframes') {
+    return `Use the ${refCount} provided images as ordered keyframes from start to end. The generated video must follow this user prompt: ${clean}. Create a smooth cinematic transition between the keyframes with consistent lighting, subject identity, and natural motion.`;
+  }
+  return clean;
 }
 
 function getVideoDimensions() {
@@ -1183,9 +1203,10 @@ async function buildVideoRequestBody(cfg) {
   if ((mode === 'multi' || mode === 'keyframes') && refs.length < 2) throw new Error('请至少上传两张参考图，或填写两个图片 URL');
 
   const dims = getVideoDimensions();
+  const requestPrompt = buildVideoPromptForMode(prompt, mode, refs.length);
   const body = {
     model: getApiVideoModel(cfg.videoModel),
-    prompt,
+    prompt: requestPrompt,
     width: dims.width,
     height: dims.height,
     num_frames: parseInt(document.getElementById('video-duration')?.value, 10) || 121,
@@ -1198,7 +1219,7 @@ async function buildVideoRequestBody(cfg) {
   if (mode === 'image') body.image = refs[0];
   if (mode === 'multi') body.extra_body = { image: refs };
   if (mode === 'keyframes') body.extra_body = { image: refs, mode: 'keyframes' };
-  return { body, prompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length };
+  return { body, prompt: requestPrompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length };
 }
 
 async function generateVideo() {
