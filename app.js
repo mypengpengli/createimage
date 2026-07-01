@@ -52,6 +52,7 @@ function modelId(model) { return String(model || '').trim().toLowerCase(); }
 const QWEN_IMAGE_MODEL = 'Qwen/Qwen-Image';
 const QWEN_IMAGE_EDIT_MODEL = 'Qwen/Qwen-Image-Edit-2509';
 const AGNES_IMAGE_MODEL = 'agnes-image-2.1-flash';
+const SENSENOVA_U1_FAST_MODEL = 'sensenova-u1-fast';
 function isQwenImageModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
 function isQwenImageEditModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
@@ -63,16 +64,24 @@ function isAgnesVideoModel(model) {
   const id = modelId(model).replace(/_/g, '-');
   return id === DEFAULT_VIDEO_MODEL || id === 'agnes-video-v20' || id === 'agnes-video-20' || id === 'agnes-video-2-0';
 }
+function isSenseNovaU1FastModel(model) {
+  return modelId(model).replace(/_/g, '-') === SENSENOVA_U1_FAST_MODEL;
+}
 function normalizeConfiguredModel(model, type) {
   const raw = String(model || '').trim();
   const id = modelId(raw);
   if (type === 'generation' && id === 'f-image') return QWEN_IMAGE_MODEL;
   if (type === 'edit' && id === 'fix-image') return QWEN_IMAGE_EDIT_MODEL;
   if (isAgnesImageModel(raw)) return AGNES_IMAGE_MODEL;
+  if (isSenseNovaU1FastModel(raw)) return SENSENOVA_U1_FAST_MODEL;
   if (type === 'video' && isAgnesVideoModel(raw)) return DEFAULT_VIDEO_MODEL;
   return raw;
 }
-function getApiModel(model) { return isAgnesImageModel(model) ? AGNES_IMAGE_MODEL : String(model || '').trim(); }
+function getApiModel(model) {
+  if (isAgnesImageModel(model)) return AGNES_IMAGE_MODEL;
+  if (isSenseNovaU1FastModel(model)) return SENSENOVA_U1_FAST_MODEL;
+  return String(model || '').trim();
+}
 function getApiVideoModel(model) { return isAgnesVideoModel(model) ? DEFAULT_VIDEO_MODEL : String(model || '').trim(); }
 function appendAliasedImageEditParams(target) {
   target.num_inference_steps = 50;
@@ -108,6 +117,29 @@ function getAliasedImageSize(sizeSpec) {
   if (ratio < 0.72) return '1056x1584';
   if (ratio < 0.88) return '1140x1472';
   return '1328x1328';
+}
+function getSenseNovaU1FastSize(sizeSpec) {
+  const ratio = parseRatio(sizeSpec?.ratio || '1:1');
+  const sizes = [
+    { size: '1664x2496', ratio: 2 / 3 },
+    { size: '2496x1664', ratio: 3 / 2 },
+    { size: '1760x2368', ratio: 3 / 4 },
+    { size: '2368x1760', ratio: 4 / 3 },
+    { size: '1824x2272', ratio: 4 / 5 },
+    { size: '2272x1824', ratio: 5 / 4 },
+    { size: '2048x2048', ratio: 1 },
+    { size: '2752x1536', ratio: 16 / 9 },
+    { size: '1536x2752', ratio: 9 / 16 },
+    { size: '3072x1376', ratio: 21 / 9 },
+    { size: '1344x3136', ratio: 9 / 21 },
+    { size: '2560x720', ratio: 32 / 9 },
+    { size: '3072x864', ratio: 32 / 9 }
+  ];
+  return sizes.reduce((best, item) => {
+    const bestDiff = Math.abs(Math.log(ratio / best.ratio));
+    const itemDiff = Math.abs(Math.log(ratio / item.ratio));
+    return itemDiff < bestDiff ? item : best;
+  }, sizes[6]).size;
 }
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -221,6 +253,17 @@ function getTabEditFiles(tab, files, modelFiles) {
   return files;
 }
 function appendImageRequestOptions(target, sizeSpec, quality, model) {
+  if (isSenseNovaU1FastModel(model)) {
+    const size = getSenseNovaU1FastSize(sizeSpec);
+    if (target instanceof FormData) {
+      target.append('size', size);
+    } else {
+      delete target.quality;
+      delete target.response_format;
+      target.size = size;
+    }
+    return sizeSpec || makeSizeSpecFromRatio(1, '1:1', '1:1', false);
+  }
   if (isAgnesImageModel(model)) {
     if (target instanceof FormData) {
       target.append('size', getAgnesImageSize(sizeSpec));
@@ -546,6 +589,9 @@ async function generateNew(tab) {
     const clothingMode = tab === 'clothing' ? getClothingMode() : '';
     const hasFiles = files.length > 0 || modelFiles.length > 0 || (tab === 'style' && styleRefFile);
     const requestModel = hasFiles ? cfg.editModel : cfg.generationModel;
+    if (hasFiles && isSenseNovaU1FastModel(requestModel)) {
+      throw new Error('SenseNova U1 Fast 是文生图模型，不支持上传图片或图生图；请移除上传图片，或把图生图/编辑模型换成支持图片输入的模型。');
+    }
     const countEl = document.getElementById(`${tab}-count`);
     const count = countEl ? parseInt(countEl.value) || 1 : 1;
     const fullPrompt = buildPrompt(tab, prompt) + getSizePrompt(size);
@@ -1639,6 +1685,9 @@ async function editImage() {
   btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex';
   const t0 = Date.now();
   try {
+    if (isSenseNovaU1FastModel(cfg.editModel)) {
+      throw new Error('SenseNova U1 Fast 是文生图模型，不支持图片编辑；请把图生图/编辑模型换成支持图片输入的模型。');
+    }
     const quality = getPanelQuality('tab-edit');
     let requestSize = null;
     if (sizeVal === 'custom') {
