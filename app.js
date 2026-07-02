@@ -53,6 +53,10 @@ const QWEN_IMAGE_MODEL = 'Qwen/Qwen-Image';
 const QWEN_IMAGE_EDIT_MODEL = 'Qwen/Qwen-Image-Edit-2509';
 const AGNES_IMAGE_MODEL = 'agnes-image-2.1-flash';
 const SENSENOVA_U1_FAST_MODEL = 'sensenova-u1-fast';
+function isGptImage2Model(model) {
+  const id = modelId(model);
+  return id === 'gpt-image-2' || id === 'gpt-image-2-all';
+}
 function isQwenImageModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
 function isQwenImageEditModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
@@ -238,9 +242,16 @@ async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, 
 function prefersJsonImageEdit(cfg) {
   return /ai\.t8star\.cn/i.test(cfg.apiBase || '');
 }
+function shouldUseJsonImageEdit(cfg, model) {
+  return prefersJsonImageEdit(cfg) || isGptImage2Model(model);
+}
 function isFetchNetworkError(err) {
   const msg = err?.message || String(err);
   return msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('网络错误');
+}
+function isUpstreamEmptyError(err) {
+  const msg = err?.message || String(err);
+  return msg.includes('未接收到上游响应内容') || msg.includes('HTTP 502') || msg.includes('HTTP 503') || msg.includes('HTTP 504');
 }
 function getTabEditFiles(tab, files, modelFiles) {
   if (tab === 'style') {
@@ -614,7 +625,7 @@ async function generateNew(tab) {
           continue;
         }
         if (tab === 'clothing' && files.length === 0) throw new Error(clothingMode === '模特试穿' ? '请先上传服装产品图；模特图是可选的' : '请先上传服装产品图');
-        if (prefersJsonImageEdit(cfg)) {
+        if (shouldUseJsonImageEdit(cfg, requestModel)) {
           tasks.push(callJsonImageEditGeneration(cfg, requestModel, fullPrompt, jsonEditFiles, requestSize, quality));
           continue;
         }
@@ -639,7 +650,8 @@ async function generateNew(tab) {
           method: 'POST', headers: { 'Authorization': `Bearer ${cfg.apiKey}` }, body: fd
         }).then(async r => { if (!r.ok) { const t = await r.text(); throw new Error(parseApiError(t, r.status)); } return r.json(); })
           .catch(err => {
-            if (!isFetchNetworkError(err)) throw err;
+            const canFallbackToJson = isFetchNetworkError(err) || (shouldUseJsonImageEdit(cfg, requestModel) && isUpstreamEmptyError(err));
+            if (!canFallbackToJson) throw err;
             return callJsonImageEditGeneration(cfg, requestModel, fullPrompt, jsonEditFiles, requestSize, quality);
           }));
       } else {
@@ -1720,7 +1732,7 @@ async function editImage() {
       return;
     }
     let data;
-    if (!maskSourceFile && prefersJsonImageEdit(cfg)) {
+    if (!maskSourceFile && shouldUseJsonImageEdit(cfg, cfg.editModel)) {
       data = await callJsonImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile, requestSize, quality);
     } else {
       const fd = new FormData(); fd.append('image', editSourceFile); if (maskSourceFile) fd.append('mask', maskSourceFile); fd.append('prompt', prompt); fd.append('model', getApiModel(cfg.editModel)); if (requestSize) requestSize = appendImageRequestOptions(fd, requestSize, quality, cfg.editModel); else appendImageRequestOptions(fd, null, quality, cfg.editModel); fd.append('n', '1');
@@ -1729,7 +1741,8 @@ async function editImage() {
         if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
         data = await res.json();
       } catch (err) {
-        if (maskSourceFile || !isFetchNetworkError(err)) throw err;
+        const canFallbackToJson = isFetchNetworkError(err) || (shouldUseJsonImageEdit(cfg, cfg.editModel) && isUpstreamEmptyError(err));
+        if (maskSourceFile || !canFallbackToJson) throw err;
         data = await callJsonImageEditGeneration(cfg, cfg.editModel, prompt, editSourceFile, requestSize, quality);
       }
     }

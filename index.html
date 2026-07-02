@@ -751,10 +751,10 @@
         <div class="field-group"><label class="field-label">密钥 (API Key)</label><div class="input-with-toggle"><input id="setting-apikey" type="password" class="text-input" placeholder="输入你的 API Key"><button class="toggle-vis" onclick="toggleKeyVis()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div><span class="field-hint">密钥仅存储在浏览器本地，不会上传</span></div>
         <div class="field-group"><label class="field-label">接口地址 (API Base URL)</label><input id="setting-api-base" type="url" class="text-input" placeholder="https://apichat.jiazhuangai.com"><span class="field-hint">兼容 OpenAI 格式的中转接口地址；Agnes 可填 https://apihub.agnes-ai.com，末尾不需要 /v1</span></div>
         <div class="field-group"><label class="field-label">文生图模型</label><input id="setting-generation-model" type="text" class="text-input" list="image-model-options" placeholder="gpt-image-2"><span class="field-hint">纯文字生成图片使用，例如 gpt-image-2、Qwen/Qwen-Image 或 agnes-image-2.1-flash</span></div>
-        <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、图片编辑时使用，例如 gpt-image-2、Qwen/Qwen-Image-Edit-2509 或 agnes-image-2.1-flash；Agnes 暂不支持遮罩图层</span></div>
+        <div class="field-group"><label class="field-label">图生图/编辑模型</label><input id="setting-edit-model" type="text" class="text-input" list="image-edit-model-options" placeholder="gpt-image-2"><span class="field-hint">上传参考图、商品图、图片编辑时使用，例如 gpt-image-2、gpt-image-2-all、Qwen/Qwen-Image-Edit-2509 或 agnes-image-2.1-flash；Agnes 暂不支持遮罩图层</span></div>
         <div class="field-group"><label class="field-label">视频模型</label><input id="setting-video-model" type="text" class="text-input" list="video-model-options" placeholder="agnes-video-v2.0"><span class="field-hint">视频生成使用，例如 agnes-video-v2.0；任务结果仅保存在浏览器本地记录</span></div>
         <datalist id="image-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image"><option value="agnes-image-2.1-flash"></datalist>
-        <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="Qwen/Qwen-Image-Edit"><option value="Qwen/Qwen-Image-Edit-2509"><option value="agnes-image-2.1-flash"></datalist>
+        <datalist id="image-edit-model-options"><option value="gpt-image-2"><option value="gpt-image-2-all"><option value="Qwen/Qwen-Image-Edit"><option value="Qwen/Qwen-Image-Edit-2509"><option value="agnes-image-2.1-flash"></datalist>
         <datalist id="video-model-options"><option value="agnes-video-v2.0"></datalist>
         <div class="field-group"><label class="field-label">润色模型 <span class="label-opt">可选</span></label><input id="setting-polish-model" type="text" class="text-input" placeholder="留空默认 agnes-2.0-flash"><span class="field-hint">AI 润色/反推使用的对话模型</span></div>
         <div class="field-group"><button class="secondary-btn full" onclick="testConnection()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> 测试连接</button><div id="conn-status" class="conn-status"></div></div>
@@ -865,6 +865,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260701-sensenova-1"></script>
+<script src="app.js?v=20260702-gpt2-json-1"></script>
 </body>
 </html>
