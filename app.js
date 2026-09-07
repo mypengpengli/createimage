@@ -4,6 +4,8 @@ const DEFAULT_API_BASE = 'https://apichat.jiazhuangai.com';
 const DEFAULT_GENERATION_MODEL = 'gpt-image-2';
 const DEFAULT_EDIT_MODEL = 'gpt-image-2';
 const DEFAULT_VIDEO_MODEL = 'agnes-video-v2.0';
+const AGNES_VIDEO_25_MODEL = 'agnes-video-2.5';
+const AGNES_VIDEO_25_FLASH_MODEL = 'agnes-video-2.5-flash';
 const DEFAULT_POLISH_MODEL = 'agnes-2.0-flash';
 const DB_NAME = 'imageforge';
 const DB_VERSION = 2;
@@ -68,6 +70,17 @@ function isAgnesVideoModel(model) {
   const id = modelId(model).replace(/_/g, '-');
   return id === DEFAULT_VIDEO_MODEL || id === 'agnes-video-v20' || id === 'agnes-video-20' || id === 'agnes-video-2-0';
 }
+function isAgnesVideo25FlashModel(model) {
+  const id = modelId(model).replace(/_/g, '-');
+  return id === AGNES_VIDEO_25_FLASH_MODEL || id === 'agnes-video-v2.5-flash' || id === 'agnes-video-25-flash';
+}
+function isAgnesVideo25Model(model) {
+  const id = modelId(model).replace(/_/g, '-');
+  return id === AGNES_VIDEO_25_MODEL || id === 'agnes-video-v2.5' || id === 'agnes-video-25';
+}
+function isAgnesVideo25Family(model) {
+  return isAgnesVideo25Model(model) || isAgnesVideo25FlashModel(model);
+}
 function isSenseNovaU1FastModel(model) {
   return modelId(model).replace(/_/g, '-') === SENSENOVA_U1_FAST_MODEL;
 }
@@ -79,6 +92,8 @@ function normalizeConfiguredModel(model, type) {
   if (isAgnesImageModel(raw)) return AGNES_IMAGE_MODEL;
   if (isSenseNovaU1FastModel(raw)) return SENSENOVA_U1_FAST_MODEL;
   if (type === 'video' && isAgnesVideoModel(raw)) return DEFAULT_VIDEO_MODEL;
+  if (type === 'video' && isAgnesVideo25FlashModel(raw)) return AGNES_VIDEO_25_FLASH_MODEL;
+  if (type === 'video' && isAgnesVideo25Model(raw)) return AGNES_VIDEO_25_MODEL;
   return raw;
 }
 function getApiModel(model) {
@@ -86,7 +101,12 @@ function getApiModel(model) {
   if (isSenseNovaU1FastModel(model)) return SENSENOVA_U1_FAST_MODEL;
   return String(model || '').trim();
 }
-function getApiVideoModel(model) { return isAgnesVideoModel(model) ? DEFAULT_VIDEO_MODEL : String(model || '').trim(); }
+function getApiVideoModel(model) {
+  if (isAgnesVideoModel(model)) return DEFAULT_VIDEO_MODEL;
+  if (isAgnesVideo25FlashModel(model)) return AGNES_VIDEO_25_FLASH_MODEL;
+  if (isAgnesVideo25Model(model)) return AGNES_VIDEO_25_MODEL;
+  return String(model || '').trim();
+}
 function appendAliasedImageEditParams(target) {
   target.num_inference_steps = 50;
   target.guidance_scale = 2;
@@ -1209,6 +1229,51 @@ function getVideoDimensions() {
   return { width: size[0], height: size[1], ratio, tier };
 }
 
+function getVideoFrameCount() {
+  return parseInt(document.getElementById('video-duration')?.value, 10) || 121;
+}
+
+function getVideoFrameRate() {
+  return parseFloat(document.getElementById('video-fps')?.value) || 24;
+}
+
+function getAgnesVideo25Seconds() {
+  const seconds = Math.round(getVideoFrameCount() / getVideoFrameRate()) || 5;
+  return String(Math.min(12, Math.max(4, seconds)));
+}
+
+function getAgnesVideo25Size(model, tier) {
+  if (isAgnesVideo25FlashModel(model)) return '720P';
+  return tier === '1080p' ? '1080P' : '720P';
+}
+
+function buildAgnesVideo25Body(model, prompt, mode, refs, dims) {
+  const apiModel = getApiVideoModel(model);
+  const body = {
+    model: apiModel,
+    prompt,
+    seconds: getAgnesVideo25Seconds(),
+    mode: 'text',
+    size: getAgnesVideo25Size(apiModel, dims.tier),
+    aspect_ratio: dims.ratio,
+    n: 1
+  };
+  const seed = parseInt(document.getElementById('video-seed')?.value, 10);
+  if (Number.isFinite(seed)) body.seed = seed;
+  if (mode === 'image') {
+    body.mode = 'keyframe';
+    body.first_frame = refs[0];
+  } else if (mode === 'keyframes') {
+    body.mode = 'keyframe';
+    body.first_frame = refs[0];
+    body.last_frame = refs[refs.length - 1];
+  } else if (mode === 'multi') {
+    body.mode = 'reference';
+    body.images = refs.slice(0, isAgnesVideo25FlashModel(apiModel) ? 5 : refs.length);
+  }
+  return body;
+}
+
 function getSavedVideoTasks() {
   try {
     const list = JSON.parse(localStorage.getItem(VIDEO_TASKS_KEY) || '[]');
@@ -1279,23 +1344,29 @@ async function buildVideoRequestBody(cfg) {
 
   const dims = getVideoDimensions();
   const requestPrompt = buildVideoPromptForMode(prompt, mode, refs.length);
-  const body = {
-    model: getApiVideoModel(cfg.videoModel),
-    prompt: requestPrompt,
-    width: dims.width,
-    height: dims.height,
-    num_frames: parseInt(document.getElementById('video-duration')?.value, 10) || 121,
-    frame_rate: parseFloat(document.getElementById('video-fps')?.value) || 24
-  };
-  const negative = document.getElementById('video-negative')?.value.trim();
-  const seed = parseInt(document.getElementById('video-seed')?.value, 10);
-  if (negative) body.negative_prompt = negative;
-  if (Number.isFinite(seed)) body.seed = seed;
-  if (mode === 'image') body.image = refs[0];
-  if (mode === 'multi') body.extra_body = { image: refs };
-  if (mode === 'keyframes') body.extra_body = { image: refs, mode: 'keyframes' };
-  if (mode !== 'text') {
-    body.extra_body = { ...(body.extra_body || {}), prompt: requestPrompt, user_prompt: prompt };
+  const apiModel = getApiVideoModel(cfg.videoModel);
+  let body;
+  if (isAgnesVideo25Family(apiModel)) {
+    body = buildAgnesVideo25Body(apiModel, requestPrompt, mode, refs, dims);
+  } else {
+    body = {
+      model: apiModel,
+      prompt: requestPrompt,
+      width: dims.width,
+      height: dims.height,
+      num_frames: getVideoFrameCount(),
+      frame_rate: getVideoFrameRate()
+    };
+    const negative = document.getElementById('video-negative')?.value.trim();
+    const seed = parseInt(document.getElementById('video-seed')?.value, 10);
+    if (negative) body.negative_prompt = negative;
+    if (Number.isFinite(seed)) body.seed = seed;
+    if (mode === 'image') body.image = refs[0];
+    if (mode === 'multi') body.extra_body = { image: refs };
+    if (mode === 'keyframes') body.extra_body = { image: refs, mode: 'keyframes' };
+    if (mode !== 'text') {
+      body.extra_body = { ...(body.extra_body || {}), prompt: requestPrompt, user_prompt: prompt };
+    }
   }
   console.debug('[ImageForge] Agnes video request', {
     mode,
@@ -1305,7 +1376,9 @@ async function buildVideoRequestBody(cfg) {
     hasImage: Boolean(body.image),
     extraBodyKeys: body.extra_body ? Object.keys(body.extra_body) : []
   });
-  return { body, prompt: requestPrompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length };
+  const seconds = body.seconds || String(body.num_frames / body.frame_rate);
+  const displaySize = body.size ? `${body.size}${body.aspect_ratio ? ` ${body.aspect_ratio}` : ''}` : `${dims.width}x${dims.height}`;
+  return { body, prompt: requestPrompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length, seconds, displaySize };
 }
 
 async function generateVideo() {
@@ -1313,7 +1386,7 @@ async function generateVideo() {
   if (!cfg.apiKey) { showToast('请先配置 API Key'); return openSettings(); }
   const btn = document.getElementById('btn-video-generate');
   setVideoCacheStatus('等待结果');
-  setVideoLoading(true, '正在提交视频任务', '创建 Agnes Video V2.0 异步任务');
+  setVideoLoading(true, '正在提交视频任务', '创建 Agnes Video 异步任务');
   if (btn) { btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex'; }
   try {
     const request = await buildVideoRequestBody(cfg);
@@ -1335,8 +1408,8 @@ async function generateVideo() {
       mode: request.mode,
       refCount: request.refCount,
       localRefCount: request.localRefCount,
-      size: data.size || `${request.dims.width}x${request.dims.height}`,
-      seconds: data.seconds || String(request.body.num_frames / request.body.frame_rate)
+      size: data.size || request.displaySize,
+      seconds: data.seconds || request.seconds
     });
     currentVideoTask = task;
     updateVideoStatus(task);
@@ -1414,19 +1487,32 @@ function startVideoPolling(task) {
   activeVideoPollTimer = setTimeout(poll, 2500);
 }
 
-async function fetchVideoTask(task) {
-  const cfg = getConfig();
-  const model = getApiVideoModel(task.model || cfg.videoModel);
-  let url;
-  if (task.videoId) {
-    const qs = new URLSearchParams({ video_id: task.videoId, model_name: model });
-    url = apiUrl(`/agnesapi?${qs.toString()}`);
-  } else {
-    url = apiUrl(`/v1/videos/${encodeURIComponent(task.taskId || task.id)}`);
-  }
+async function fetchVideoTaskJson(url, cfg) {
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Accept': 'application/json' } });
   if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
   return res.json();
+}
+
+function getAgnesVideoTaskUrl(videoId, model) {
+  const qs = new URLSearchParams({ video_id: videoId, model_name: model });
+  return apiUrl(`/agnesapi?${qs.toString()}`);
+}
+
+async function fetchVideoTask(task) {
+  const cfg = getConfig();
+  const model = getApiVideoModel(task.model || cfg.videoModel);
+  const taskLookupId = task.taskId || task.id;
+  const agnesUrl = task.videoId ? getAgnesVideoTaskUrl(task.videoId, model) : '';
+  if (taskLookupId) {
+    try {
+      return await fetchVideoTaskJson(apiUrl(`/v1/videos/${encodeURIComponent(taskLookupId)}`), cfg);
+    } catch (err) {
+      if (!agnesUrl) throw err;
+      return fetchVideoTaskJson(agnesUrl, cfg);
+    }
+  }
+  if (agnesUrl) return fetchVideoTaskJson(agnesUrl, cfg);
+  throw new Error('缺少 video_id 或 task_id');
 }
 
 function mergeVideoTask(task, data) {
@@ -1450,6 +1536,7 @@ function extractVideoUrl(data) {
   if (!data) return '';
   const direct = data.remixed_from_video_id || data.video_url || data.url || data.output_url || data.result_url;
   if (typeof direct === 'string' && /^https?:\/\//i.test(direct)) return direct;
+  if (data.metadata) return extractVideoUrl(data.metadata);
   if (Array.isArray(data.data) && data.data[0]) return extractVideoUrl(data.data[0]);
   if (data.output) return extractVideoUrl(typeof data.output === 'object' ? data.output : { url: data.output });
   return '';
