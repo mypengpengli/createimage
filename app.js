@@ -62,9 +62,17 @@ function isGptImage2Model(model) {
 function isQwenImageModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image') || id.startsWith('qwen-image'); }
 function isQwenImageEditModel(model) { const id = modelId(model); return id.startsWith('qwen/qwen-image-edit') || id.startsWith('qwen-image-edit'); }
 function isQwenImageGenerationModel(model) { return isQwenImageModel(model) && !isQwenImageEditModel(model); }
-function isAgnesImageModel(model) {
+function normalizeAgnesImageModel(model) {
   const id = modelId(model).replace(/_/g, '-');
-  return id === AGNES_IMAGE_MODEL || id === 'agnes-image-21-flash' || id === 'agnes-image-2-1-flash';
+  if (!id.startsWith('agnes-image-')) return '';
+  let suffix = id.slice('agnes-image-'.length).replace(/^v(?=\d)/, '');
+  if (!/^\d/.test(suffix)) return '';
+  suffix = suffix.replace(/^(\d)-(\d)(?=-|$)/, '$1.$2');
+  suffix = suffix.replace(/^(\d)(\d)(?=-|$)/, '$1.$2');
+  return `agnes-image-${suffix}`;
+}
+function isAgnesImageModel(model) {
+  return Boolean(normalizeAgnesImageModel(model));
 }
 function isAgnesVideoModel(model) {
   const id = modelId(model).replace(/_/g, '-');
@@ -89,7 +97,7 @@ function normalizeConfiguredModel(model, type) {
   const id = modelId(raw);
   if (type === 'generation' && id === 'f-image') return QWEN_IMAGE_MODEL;
   if (type === 'edit' && id === 'fix-image') return QWEN_IMAGE_EDIT_MODEL;
-  if (isAgnesImageModel(raw)) return AGNES_IMAGE_MODEL;
+  if ((type === 'generation' || type === 'edit') && isAgnesImageModel(raw)) return normalizeAgnesImageModel(raw);
   if (isSenseNovaU1FastModel(raw)) return SENSENOVA_U1_FAST_MODEL;
   if (type === 'video' && isAgnesVideoModel(raw)) return DEFAULT_VIDEO_MODEL;
   if (type === 'video' && isAgnesVideo25FlashModel(raw)) return AGNES_VIDEO_25_FLASH_MODEL;
@@ -97,7 +105,7 @@ function normalizeConfiguredModel(model, type) {
   return raw;
 }
 function getApiModel(model) {
-  if (isAgnesImageModel(model)) return AGNES_IMAGE_MODEL;
+  if (isAgnesImageModel(model)) return normalizeAgnesImageModel(model);
   if (isSenseNovaU1FastModel(model)) return SENSENOVA_U1_FAST_MODEL;
   return String(model || '').trim();
 }

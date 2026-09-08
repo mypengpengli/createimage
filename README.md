@@ -11,7 +11,7 @@
 
 ## 项目亮点
 
-- 已适配 Agnes 多个模型能力：`agnes-image-2.1-flash` 可用于文生图、图生图和图片编辑，`agnes-video-v2.0`、`agnes-video-2.5`、`agnes-video-2.5-flash` 可用于视频任务，`agnes-2.0-flash` 可用于提示词润色和反推。
+- 已适配 Agnes 多个模型能力：`agnes-image-2.1-flash`、`agnes-image-2.5-flash` 可用于文生图、图生图和图片编辑，后续同协议的 `agnes-image-*` 模型会自动走 Agnes 图片参数；`agnes-video-v2.0`、`agnes-video-2.5`、`agnes-video-2.5-flash` 可用于视频任务，`agnes-2.0-flash` 可用于提示词润色和反推。
 - 同时兼容 `gpt-image-2`、`Qwen/Qwen-Image`、`Qwen/Qwen-Image-Edit` 等常见 OpenAI/New API 格式模型，适合接入自己的中转站。
 - 前端页面、站点名称、Logo、模型列表、接口地址、样式和部署域名都可以自由修改，你可以把它改造成自己的品牌站点、客户演示站、内部工具或商业化图片生成平台。
 - 无数据库、无复杂后端依赖，Docker、1Panel、Nginx 静态站点都能部署，迁移和二开成本很低。
@@ -30,8 +30,8 @@ python -m http.server 5200
 
 - `接口地址`：`https://apichat.jiazhuangai.com`
 - `API Key`：你的 New API Key
-- `文生图模型`：纯文字生成图片使用，例如 `gpt-image-2`、`Qwen/Qwen-Image`、`agnes-image-2.1-flash`
-- `图生图/编辑模型`：上传参考图、商品图、图片编辑使用，例如 `gpt-image-2`、`Qwen/Qwen-Image-Edit`、`agnes-image-2.1-flash`
+- `文生图模型`：纯文字生成图片使用，例如 `gpt-image-2`、`Qwen/Qwen-Image`、`agnes-image-2.1-flash`、`agnes-image-2.5-flash`
+- `图生图/编辑模型`：上传参考图、商品图、图片编辑使用，例如 `gpt-image-2`、`Qwen/Qwen-Image-Edit`、`agnes-image-2.1-flash`、`agnes-image-2.5-flash`
 - `视频模型`：视频生成使用，例如 `agnes-video-v2.0`、`agnes-video-2.5-flash`
 - `润色模型`：可选，对应聊天模型别名，例如 `agnes-2.0-flash`
 
