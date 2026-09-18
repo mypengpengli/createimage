@@ -219,7 +219,7 @@ async function filesToAgnesImageRefs(files) {
 }
 function buildAgnesImageEditPrompt(prompt, refCount) {
   const refText = refCount > 1 ? `the ${refCount} provided reference images` : 'the provided reference image';
-  return `Use ${refText} as the visual source for this image-to-image edit. Follow this edit instruction: ${prompt}. Preserve the original subject identity, product shape, composition, camera angle, and important visual details unless the instruction explicitly changes them.`;
+  return `Use ${refText} as the visual source for this image-to-image edit. Follow this edit instruction: ${prompt}.`;
 }
 async function callJsonImageEditGeneration(cfg, model, prompt, files, sizeSpec, quality) {
   const list = Array.isArray(files) ? files : [files];
