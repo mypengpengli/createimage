@@ -12,6 +12,8 @@ const DB_VERSION = 2;
 const STORE_NAME = 'history';
 const VIDEO_TASKS_KEY = 'if_video_tasks';
 const VIDEO_TEMP_CACHE_LIMIT = 3;
+const VIDEO_MAX_AUTO_RETRIES = 20;
+const VIDEO_RETRY_DELAY_MS = 3000;
 let db = null;
 let currentGenResult = null;
 let currentEditResult = null;
@@ -1293,14 +1295,15 @@ function getSavedVideoTasks() {
 
 function saveVideoTask(task) {
   const list = getSavedVideoTasks();
-  const key = task.videoId || task.taskId || task.id;
-  const idx = list.findIndex(item => (item.videoId || item.taskId || item.id) === key);
+  const ids = [task.videoId, task.taskId, task.id].filter(Boolean);
+  const idx = list.findIndex(item => [item.videoId, item.taskId, item.id].filter(Boolean).some(id => ids.includes(id)));
   const next = { ...(idx >= 0 ? list[idx] : {}), ...task, updatedAt: Date.now() };
   if (!next.createdAt) next.createdAt = Date.now();
   if (idx >= 0) list[idx] = next;
   else list.unshift(next);
   localStorage.setItem(VIDEO_TASKS_KEY, JSON.stringify(list.slice(0, 20)));
   renderVideoTasks();
+  refreshHistory();
   return next;
 }
 
@@ -1308,6 +1311,14 @@ function clearVideoTasks() {
   localStorage.removeItem(VIDEO_TASKS_KEY);
   clearVideoTempCache();
   renderVideoTasks();
+  refreshHistory();
+}
+
+function deleteSavedVideoTask(key) {
+  const list = getSavedVideoTasks().filter(item => ![item.videoId, item.taskId, item.id].filter(Boolean).includes(key));
+  localStorage.setItem(VIDEO_TASKS_KEY, JSON.stringify(list));
+  renderVideoTasks();
+  refreshHistory();
 }
 
 function renderVideoTasks() {
@@ -1386,7 +1397,51 @@ async function buildVideoRequestBody(cfg) {
   });
   const seconds = body.seconds || String(body.num_frames / body.frame_rate);
   const displaySize = body.size ? `${body.size}${body.aspect_ratio ? ` ${body.aspect_ratio}` : ''}` : `${dims.width}x${dims.height}`;
-  return { body, prompt: requestPrompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length, seconds, displaySize };
+  return { body, prompt: requestPrompt, userPrompt: prompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length, seconds, displaySize };
+}
+
+function isRetryableVideoError(err) {
+  const status = Number(err?.status);
+  const message = String(err?.message || err || '').toLowerCase();
+  return status === 429 || status >= 500 || /video_queue_full|queue[^\n]*full|retry later|temporar|overload|server busy|service unavailable|failed to fetch|networkerror|network error/.test(message);
+}
+
+function waitForVideoRetry(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function submitVideoRequest(request, cfg) {
+  let retryCount = 0;
+  while (true) {
+    try {
+      const res = await fetch(apiUrl('/v1/videos'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(request.body)
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        const err = new Error(parseApiError(text, res.status));
+        err.status = res.status;
+        throw err;
+      }
+      return { data: await res.json(), retryCount };
+    } catch (err) {
+      if (!isRetryableVideoError(err) || retryCount >= VIDEO_MAX_AUTO_RETRIES) {
+        err.retryCount = retryCount;
+        throw err;
+      }
+      retryCount += 1;
+      setVideoLoading(true, `自动重试 ${retryCount}/${VIDEO_MAX_AUTO_RETRIES}`, friendlyError(err));
+      updateVideoRetryStatus(retryCount);
+      await waitForVideoRetry(VIDEO_RETRY_DELAY_MS);
+    }
+  }
+}
+
+function updateVideoRetryStatus(retryCount) {
+  const status = document.getElementById('video-status');
+  if (status) status.textContent = `提交失败，自动重试 ${retryCount}/${VIDEO_MAX_AUTO_RETRIES}`;
 }
 
 async function generateVideo() {
@@ -1398,13 +1453,7 @@ async function generateVideo() {
   if (btn) { btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex'; }
   try {
     const request = await buildVideoRequestBody(cfg);
-    const res = await fetch(apiUrl('/v1/videos'), {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(request.body)
-    });
-    if (!res.ok) { const t = await res.text(); throw new Error(parseApiError(t, res.status)); }
-    const data = await res.json();
+    const { data, retryCount } = await submitVideoRequest(request, cfg);
     const task = saveVideoTask({
       id: data.id || data.task_id || '',
       taskId: data.task_id || data.id || '',
@@ -1412,19 +1461,23 @@ async function generateVideo() {
       model: data.model || request.body.model,
       status: data.status || 'queued',
       progress: data.progress || 0,
-      prompt: request.prompt,
+      prompt: request.userPrompt,
+      requestPrompt: request.prompt,
       mode: request.mode,
       refCount: request.refCount,
       localRefCount: request.localRefCount,
       size: data.size || request.displaySize,
-      seconds: data.seconds || request.seconds
+      seconds: data.seconds || request.seconds,
+      retryCount
     });
     currentVideoTask = task;
     updateVideoStatus(task);
     startVideoPolling(task);
-    showToast('视频任务已提交');
+    showToast(retryCount ? `视频任务已提交（自动重试 ${retryCount} 次）` : '视频任务已提交');
   } catch (err) {
     setVideoLoading(false);
+    const status = document.getElementById('video-status');
+    if (status) status.textContent = err.retryCount ? `提交失败 · 已自动重试 ${err.retryCount} 次` : '提交失败';
     showVideoError(friendlyError(err));
   } finally {
     if (btn) { btn.disabled = false; btn.querySelector('.btn-content').style.display = 'flex'; btn.querySelector('.btn-loading').style.display = 'none'; }
@@ -1717,8 +1770,13 @@ function copyVideoUrl() {
 function downloadVideoResult() {
   const originalUrl = currentVideoTask?.videoUrl || '';
   const playerUrl = document.getElementById('video-result-player')?.src || '';
+  downloadVideoFromUrl(originalUrl || playerUrl);
+}
+
+function downloadVideoFromUrl(originalUrl) {
+  if (!originalUrl) return;
   const cached = getVideoTempCache(originalUrl);
-  const url = cached?.blobUrl || playerUrl || originalUrl;
+  const url = cached?.blobUrl || originalUrl;
   if (!url) return;
   if (/^blob:/i.test(url)) {
     const a = document.createElement('a');
@@ -1963,27 +2021,76 @@ function closeFullscreen() { document.getElementById('fullscreen-overlay').style
 // ===== History =====
 async function refreshHistory() {
   if (!db) return;
-  const items = await getAllHistory();
+  const imageItems = (await getAllHistory()).map(item => ({ ...item, historyKind: 'image' }));
+  const videoItems = getSavedVideoTasks().map(task => ({
+    ...task,
+    type: 'video',
+    historyKind: 'video',
+    videoKey: task.videoId || task.taskId || task.id || ''
+  }));
+  const items = [...imageItems, ...videoItems];
   let filtered = historyFilter === 'all' ? items : items.filter(i => i.type === historyFilter);
   filtered.sort((a, b) => b.createdAt - a.createdAt);
   document.getElementById('history-count').textContent = `${filtered.length} 条记录`;
   const grid = document.getElementById('history-grid');
-  if (!filtered.length) { grid.innerHTML = `<div class="history-empty"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div><h3 class="empty-title">暂无记录</h3><p class="empty-desc">创作的图片会自动保存在这里</p></div>`; return; }
-  const typeLabels = { generate: '生成', edit: '编辑', product: '商品图', style: '风格复刻', clothing: '服装', refine: '精修' };
-  grid.innerHTML = filtered.map(item => `<div class="history-card" onclick="openDetail(${item.id})"><img class="history-card-img" src="${item.imageData}" loading="lazy" /><div class="history-card-body"><div class="history-card-prompt">${esc(item.prompt)}</div><div class="history-card-meta"><span class="history-card-badge badge-gen">${typeLabels[item.type] || item.type}</span><span>${fmtTime(item.createdAt)}</span></div><button class="text-btn accent history-edit-btn" onclick="event.stopPropagation();sendHistoryToEdit(${item.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑</button></div></div>`).join('');
+  if (!filtered.length) { grid.innerHTML = `<div class="history-empty"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div><h3 class="empty-title">暂无记录</h3><p class="empty-desc">创作的图片和视频会自动保存在这里</p></div>`; return; }
+  const typeLabels = { generate: '生成', edit: '编辑', product: '商品图', style: '风格复刻', clothing: '服装', refine: '精修', video: '视频' };
+  grid.innerHTML = filtered.map(item => {
+    if (item.historyKind === 'video') {
+      const media = item.videoUrl
+        ? `<video class="history-card-video" src="${escAttr(item.videoUrl)}" preload="metadata" muted playsinline></video>`
+        : `<div class="history-card-video-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M18 9l4-2v10l-4-2z"/></svg><span>${esc(formatVideoStatus(item.status))}</span></div>`;
+      return `<div class="history-card" data-video-key="${escAttr(item.videoKey)}" onclick="openVideoHistoryDetail(this.dataset.videoKey)">${media}<div class="history-card-body"><div class="history-card-prompt">${esc(item.prompt || '(video)')}</div><div class="history-card-meta"><span class="history-card-badge badge-gen">视频 · ${esc(formatVideoStatus(item.status))}</span><span>${fmtTime(item.createdAt)}</span></div></div></div>`;
+    }
+    return `<div class="history-card" onclick="openDetail(${item.id})"><img class="history-card-img" src="${item.imageData}" loading="lazy" /><div class="history-card-body"><div class="history-card-prompt">${esc(item.prompt)}</div><div class="history-card-meta"><span class="history-card-badge badge-gen">${typeLabels[item.type] || item.type}</span><span>${fmtTime(item.createdAt)}</span></div><button class="text-btn accent history-edit-btn" onclick="event.stopPropagation();sendHistoryToEdit(${item.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑</button></div></div>`;
+  }).join('');
 }
 function filterHistory(type, btn) { historyFilter = type; document.querySelectorAll('.htab').forEach(b => b.classList.remove('active')); if (btn) btn.classList.add('active'); refreshHistory(); }
-async function clearHistory() { if (!confirm('确定要清空所有历史记录？')) return; await clearAllHistory(); showToast('已清空'); }
+async function clearHistory() { if (!confirm('确定要清空所有图片和视频历史记录？')) return; localStorage.removeItem(VIDEO_TASKS_KEY); clearVideoTempCache(); renderVideoTasks(); await clearAllHistory(); showToast('已清空'); }
 
 // ===== Detail =====
-function openDetail(id) { const r = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(id); r.onsuccess = () => { const item = r.result; if (!item) return; currentDetailItem = item; document.getElementById('detail-title').textContent = '图片详情'; document.getElementById('detail-img').src = item.imageData; document.getElementById('detail-type').textContent = item.type; document.getElementById('detail-prompt').textContent = item.prompt; document.getElementById('detail-size').textContent = item.size || '—'; document.getElementById('detail-elapsed').textContent = item.elapsed ? `${item.elapsed}s` : '—'; document.getElementById('detail-time').textContent = fmtTimeFull(item.createdAt); document.getElementById('detail-modal').style.display = 'flex'; }; }
-function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; currentDetailItem = null; }
+function formatVideoStatus(status) {
+  const labels = { queued: '排队中', pending: '等待中', processing: '生成中', running: '生成中', completed: '已完成', succeeded: '已完成', failed: '失败', cancelled: '已取消' };
+  return labels[String(status || '').toLowerCase()] || status || '等待中';
+}
+function showHistoryDetail(item) {
+  const isVideo = item?.historyKind === 'video' || item?.type === 'video';
+  currentDetailItem = item;
+  const image = document.getElementById('detail-img');
+  const video = document.getElementById('detail-video');
+  const placeholder = document.getElementById('detail-video-placeholder');
+  document.getElementById('detail-title').textContent = isVideo ? '视频详情' : '图片详情';
+  image.style.display = isVideo ? 'none' : '';
+  image.src = isVideo ? '' : item.imageData;
+  video.style.display = isVideo && item.videoUrl ? '' : 'none';
+  video.src = isVideo && item.videoUrl ? item.videoUrl : '';
+  placeholder.style.display = isVideo && !item.videoUrl ? 'flex' : 'none';
+  placeholder.textContent = isVideo ? `视频${formatVideoStatus(item.status)}` : '';
+  document.getElementById('detail-type').textContent = isVideo ? `视频 · ${item.model || '—'}` : item.type;
+  document.getElementById('detail-prompt').textContent = item.prompt || '—';
+  document.getElementById('detail-size').textContent = item.size || '—';
+  document.getElementById('detail-elapsed-label').textContent = isVideo ? '时长' : '耗时';
+  document.getElementById('detail-elapsed').textContent = isVideo ? (item.seconds ? `${item.seconds}s` : '—') : (item.elapsed ? `${item.elapsed}s` : '—');
+  document.getElementById('detail-time').textContent = fmtTimeFull(item.createdAt);
+  document.getElementById('detail-status-row').style.display = isVideo ? '' : 'none';
+  document.getElementById('detail-status').textContent = isVideo ? formatVideoStatus(item.status) : '';
+  document.getElementById('detail-edit-btn').style.display = isVideo ? 'none' : '';
+  document.getElementById('detail-download-btn').style.display = isVideo && !item.videoUrl ? 'none' : '';
+  document.getElementById('detail-modal').style.display = 'flex';
+}
+function openDetail(id) { const r = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(id); r.onsuccess = () => { const item = r.result; if (item) showHistoryDetail({ ...item, historyKind: 'image' }); }; }
+function openVideoHistoryDetail(key) {
+  const item = getSavedVideoTasks().find(task => (task.videoId || task.taskId || task.id) === key);
+  if (item) showHistoryDetail({ ...item, type: 'video', historyKind: 'video', videoKey: key });
+}
+function closeDetail() { const video = document.getElementById('detail-video'); video.pause(); video.removeAttribute('src'); video.load(); document.getElementById('detail-modal').style.display = 'none'; currentDetailItem = null; }
 function closeDetailOutside(e) { if (e.target === e.currentTarget) closeDetail(); }
-async function deleteHistoryItem() { if (!currentDetailItem || !confirm('确定删除？')) return; await deleteFromHistory(currentDetailItem.id); closeDetail(); showToast('已删除'); }
-function downloadDetailImage() { if (!currentDetailItem) return; downloadImage(currentDetailItem.imageData, `imageforge-${ts()}.png`); }
+async function deleteHistoryItem() { if (!currentDetailItem || !confirm('确定删除？')) return; if (currentDetailItem.historyKind === 'video') deleteSavedVideoTask(currentDetailItem.videoKey || currentDetailItem.videoId || currentDetailItem.taskId || currentDetailItem.id); else await deleteFromHistory(currentDetailItem.id); closeDetail(); showToast('已删除'); }
+function downloadDetailMedia() { if (!currentDetailItem) return; if (currentDetailItem.historyKind === 'video') return downloadVideoFromUrl(currentDetailItem.videoUrl); downloadImage(currentDetailItem.imageData, `imageforge-${ts()}.png`); }
 function sendDetailToEdit() {
   if (!currentDetailItem) return;
   const item = currentDetailItem;
+  if (item.historyKind === 'video') return;
   closeDetail();
   setEditSourceFromImage(item.imageData, `imageforge-history-${item.id || ts()}.png`);
 }
