@@ -11,8 +11,10 @@ const DB_NAME = 'imageforge';
 const DB_VERSION = 2;
 const STORE_NAME = 'history';
 const VIDEO_TASKS_KEY = 'if_video_tasks';
+const VIDEO_RETRY_COUNT_KEY = 'if_video_retry_count';
 const VIDEO_TEMP_CACHE_LIMIT = 3;
-const VIDEO_MAX_AUTO_RETRIES = 50;
+const DEFAULT_VIDEO_AUTO_RETRIES = 50;
+const MAX_VIDEO_AUTO_RETRIES = 100;
 const VIDEO_RETRY_DELAY_MS = 3000;
 let db = null;
 let currentGenResult = null;
@@ -37,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDragDrop();
   initClothingModeUI();
   initVideoModeUI();
+  loadVideoRetryCount();
   ensureContinueEditButtons();
   renderVideoTasks();
   checkFirstRun();
@@ -1247,6 +1250,30 @@ function getVideoFrameRate() {
   return parseFloat(document.getElementById('video-fps')?.value) || 24;
 }
 
+function normalizeVideoRetryCount(value) {
+  const count = Number.parseInt(value, 10);
+  if (!Number.isFinite(count)) return DEFAULT_VIDEO_AUTO_RETRIES;
+  return Math.min(MAX_VIDEO_AUTO_RETRIES, Math.max(0, count));
+}
+
+function getVideoRetryLimit() {
+  const input = document.getElementById('video-retry-count');
+  return normalizeVideoRetryCount(input?.value ?? localStorage.getItem(VIDEO_RETRY_COUNT_KEY));
+}
+
+function loadVideoRetryCount() {
+  const input = document.getElementById('video-retry-count');
+  if (input) input.value = String(normalizeVideoRetryCount(localStorage.getItem(VIDEO_RETRY_COUNT_KEY)));
+}
+
+function saveVideoRetryCount() {
+  const input = document.getElementById('video-retry-count');
+  const count = normalizeVideoRetryCount(input?.value);
+  if (input) input.value = String(count);
+  localStorage.setItem(VIDEO_RETRY_COUNT_KEY, String(count));
+  return count;
+}
+
 function getAgnesVideo25Seconds() {
   const seconds = Math.round(getVideoFrameCount() / getVideoFrameRate()) || 5;
   return String(Math.min(12, Math.max(4, seconds)));
@@ -1410,7 +1437,7 @@ function waitForVideoRetry(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function submitVideoRequest(request, cfg) {
+async function submitVideoRequest(request, cfg, retryLimit = getVideoRetryLimit()) {
   let retryCount = 0;
   while (true) {
     try {
@@ -1427,21 +1454,22 @@ async function submitVideoRequest(request, cfg) {
       }
       return { data: await res.json(), retryCount };
     } catch (err) {
-      if (!isRetryableVideoError(err) || retryCount >= VIDEO_MAX_AUTO_RETRIES) {
+      if (!isRetryableVideoError(err) || retryCount >= retryLimit) {
         err.retryCount = retryCount;
+        err.retryLimit = retryLimit;
         throw err;
       }
       retryCount += 1;
-      setVideoLoading(true, `自动重试 ${retryCount}/${VIDEO_MAX_AUTO_RETRIES}`, friendlyError(err));
-      updateVideoRetryStatus(retryCount);
+      setVideoLoading(true, `自动重试 ${retryCount}/${retryLimit}`, friendlyError(err));
+      updateVideoRetryStatus(retryCount, retryLimit);
       await waitForVideoRetry(VIDEO_RETRY_DELAY_MS);
     }
   }
 }
 
-function updateVideoRetryStatus(retryCount) {
+function updateVideoRetryStatus(retryCount, retryLimit) {
   const status = document.getElementById('video-status');
-  if (status) status.textContent = `提交失败，自动重试 ${retryCount}/${VIDEO_MAX_AUTO_RETRIES}`;
+  if (status) status.textContent = `提交失败，自动重试 ${retryCount}/${retryLimit}`;
 }
 
 async function generateVideo() {
@@ -1453,7 +1481,8 @@ async function generateVideo() {
   if (btn) { btn.disabled = true; btn.querySelector('.btn-content').style.display = 'none'; btn.querySelector('.btn-loading').style.display = 'flex'; }
   try {
     const request = await buildVideoRequestBody(cfg);
-    const { data, retryCount } = await submitVideoRequest(request, cfg);
+    const retryLimit = saveVideoRetryCount();
+    const { data, retryCount } = await submitVideoRequest(request, cfg, retryLimit);
     const task = saveVideoTask({
       id: data.id || data.task_id || '',
       taskId: data.task_id || data.id || '',
@@ -1468,7 +1497,8 @@ async function generateVideo() {
       localRefCount: request.localRefCount,
       size: data.size || request.displaySize,
       seconds: data.seconds || request.seconds,
-      retryCount
+      retryCount,
+      retryLimit
     });
     currentVideoTask = task;
     updateVideoStatus(task);

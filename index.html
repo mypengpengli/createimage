@@ -647,6 +647,7 @@
                 <option value="121">约 5 秒</option>
                 <option value="81">约 3 秒</option>
                 <option value="241">约 10 秒</option>
+                <option value="289">约 12 秒</option>
                 <option value="441">约 18 秒</option>
               </select></div>
             </div>
@@ -660,6 +661,11 @@
               <label class="field-label">Seed <span class="label-opt">可选</span></label>
               <input id="video-seed" class="text-input" type="number" placeholder="随机">
             </div>
+          </div>
+          <div class="panel-section">
+            <label class="field-label">失败自动重试 <span class="label-opt">0–100 次</span></label>
+            <input id="video-retry-count" class="text-input" type="number" min="0" max="100" step="1" value="50" onchange="saveVideoRetryCount()">
+            <span class="field-hint">仅在队列已满、限流、临时服务错误或网络错误时重试；填写 0 可关闭</span>
           </div>
           <div class="panel-section">
             <label class="field-label">负面提示词 <span class="label-opt">可选</span></label>
@@ -866,6 +872,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260920-video-retry-history-2"></script>
+<script src="app.js?v=20260923-video-options-1"></script>
 </body>
 </html>
