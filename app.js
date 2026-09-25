@@ -16,6 +16,7 @@ const VIDEO_TEMP_CACHE_LIMIT = 3;
 const DEFAULT_VIDEO_AUTO_RETRIES = 50;
 const MAX_VIDEO_AUTO_RETRIES = 100;
 const VIDEO_RETRY_DELAY_MS = 3000;
+const VIDEO_MAX_RETRY_DELAY_MS = 30000;
 let db = null;
 let currentGenResult = null;
 let currentEditResult = null;
@@ -1427,10 +1428,26 @@ async function buildVideoRequestBody(cfg) {
   return { body, prompt: requestPrompt, userPrompt: prompt, mode, dims, refCount: refs.length, localRefCount: localRefs.length, seconds, displaySize };
 }
 
+function makeVideoSubmitError(text, status) {
+  const err = new Error(parseApiError(text, status));
+  err.status = status;
+  try {
+    const data = JSON.parse(text);
+    err.code = data.error?.code || data.code || '';
+  } catch { /* Keep the original HTTP error message. */ }
+  return err;
+}
+
 function isRetryableVideoError(err) {
-  const status = Number(err?.status);
-  const message = String(err?.message || err || '').toLowerCase();
-  return status === 429 || status >= 500 || /video_queue_full|queue[^\n]*full|retry later|temporar|overload|server busy|service unavailable|failed to fetch|networkerror|network error/.test(message);
+  return err?.status === 429 || err?.code === 'video_queue_full';
+}
+
+function isVideoTransportError(err) {
+  return /failed to fetch|networkerror|load failed/i.test(String(err?.message || ''));
+}
+
+function getVideoRetryDelay(retryCount) {
+  return Math.min(VIDEO_MAX_RETRY_DELAY_MS, VIDEO_RETRY_DELAY_MS * (2 ** Math.min(retryCount - 1, 4)));
 }
 
 function waitForVideoRetry(ms) {
@@ -1439,30 +1456,35 @@ function waitForVideoRetry(ms) {
 
 async function submitVideoRequest(request, cfg, retryLimit = getVideoRetryLimit()) {
   let retryCount = 0;
+  let lastServerError = null;
+  const body = JSON.stringify(request.body);
   while (true) {
     try {
       const res = await fetch(apiUrl('/v1/videos'), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(request.body)
+        body
       });
       if (!res.ok) {
         const text = await res.text();
-        const err = new Error(parseApiError(text, res.status));
-        err.status = res.status;
-        throw err;
+        throw makeVideoSubmitError(text, res.status);
       }
       return { data: await res.json(), retryCount };
     } catch (err) {
       if (!isRetryableVideoError(err) || retryCount >= retryLimit) {
-        err.retryCount = retryCount;
-        err.retryLimit = retryLimit;
-        throw err;
+        const finalError = lastServerError && isVideoTransportError(err)
+          ? new Error(`重试时请求未收到响应；此前接口返回：${lastServerError.message}。请先查询视频任务，避免重复提交。`)
+          : err;
+        finalError.retryCount = retryCount;
+        finalError.retryLimit = retryLimit;
+        throw finalError;
       }
+      lastServerError = err;
       retryCount += 1;
-      setVideoLoading(true, `自动重试 ${retryCount}/${retryLimit}`, friendlyError(err));
+      const delay = getVideoRetryDelay(retryCount);
+      setVideoLoading(true, `自动重试 ${retryCount}/${retryLimit}`, `${friendlyError(err)}；${delay / 1000} 秒后重试`);
       updateVideoRetryStatus(retryCount, retryLimit);
-      await waitForVideoRetry(VIDEO_RETRY_DELAY_MS);
+      await waitForVideoRetry(delay);
     }
   }
 }
