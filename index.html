@@ -665,7 +665,7 @@
           <div class="panel-section">
             <label class="field-label">失败自动重试 <span class="label-opt">0–100 次</span></label>
             <input id="video-retry-count" class="text-input" type="number" min="0" max="100" step="1" value="50" onchange="saveVideoRetryCount()">
-            <span class="field-hint">仅在接口明确返回队列已满或限流时重试；填写 0 可关闭</span>
+            <span class="field-hint">队列已满、限流、临时服务或网络错误时，每 3 秒重试；填写 0 可关闭</span>
           </div>
           <div class="panel-section">
             <label class="field-label">负面提示词 <span class="label-opt">可选</span></label>
@@ -872,6 +872,6 @@
 </div>
 
 <script src="gallery-cases.js"></script>
-<script src="app.js?v=20260925-video-retry-fix-1"></script>
+<script src="app.js?v=20260926-video-retry-fix-2"></script>
 </body>
 </html>

@@ -16,7 +16,6 @@ const VIDEO_TEMP_CACHE_LIMIT = 3;
 const DEFAULT_VIDEO_AUTO_RETRIES = 50;
 const MAX_VIDEO_AUTO_RETRIES = 100;
 const VIDEO_RETRY_DELAY_MS = 3000;
-const VIDEO_MAX_RETRY_DELAY_MS = 30000;
 let db = null;
 let currentGenResult = null;
 let currentEditResult = null;
@@ -1429,25 +1428,40 @@ async function buildVideoRequestBody(cfg) {
 }
 
 function makeVideoSubmitError(text, status) {
-  const err = new Error(parseApiError(text, status));
-  err.status = status;
+  let message = parseApiError(text, status);
+  let code = '';
   try {
-    const data = JSON.parse(text);
-    err.code = data.error?.code || data.code || '';
+    let data = JSON.parse(text);
+    for (let depth = 0; depth < 3; depth++) {
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch { message = data; break; }
+      } else if (data && typeof data === 'object') {
+        code = data.code || code;
+        if (typeof data.message === 'string') message = data.message;
+        if (data.error) { data = data.error; continue; }
+        if (typeof data.message === 'string' && data.message.trim().startsWith('{')) {
+          data = data.message;
+          continue;
+        }
+        break;
+      } else break;
+    }
   } catch { /* Keep the original HTTP error message. */ }
+  const err = new Error(message);
+  err.status = status;
+  err.code = code;
+  err.responseText = text;
   return err;
 }
 
 function isRetryableVideoError(err) {
-  return err?.status === 429 || err?.code === 'video_queue_full';
+  const status = Number(err?.status);
+  const message = `${err?.code || ''} ${err?.message || ''} ${err?.responseText || ''}`.toLowerCase();
+  return status === 429 || status >= 500 || /video_queue_full|queue[^\n]*full|retry later|temporar|overload|server busy|service unavailable|failed to fetch|networkerror|network error|load failed/.test(message);
 }
 
 function isVideoTransportError(err) {
   return /failed to fetch|networkerror|load failed/i.test(String(err?.message || ''));
-}
-
-function getVideoRetryDelay(retryCount) {
-  return Math.min(VIDEO_MAX_RETRY_DELAY_MS, VIDEO_RETRY_DELAY_MS * (2 ** Math.min(retryCount - 1, 4)));
 }
 
 function waitForVideoRetry(ms) {
@@ -1469,7 +1483,11 @@ async function submitVideoRequest(request, cfg, retryLimit = getVideoRetryLimit(
         const text = await res.text();
         throw makeVideoSubmitError(text, res.status);
       }
-      return { data: await res.json(), retryCount };
+      const data = await res.json();
+      if (data?.error || (!data?.id && !data?.task_id && !data?.video_id && (data?.code || data?.message))) {
+        throw makeVideoSubmitError(JSON.stringify(data), res.status);
+      }
+      return { data, retryCount };
     } catch (err) {
       if (!isRetryableVideoError(err) || retryCount >= retryLimit) {
         const finalError = lastServerError && isVideoTransportError(err)
@@ -1479,12 +1497,11 @@ async function submitVideoRequest(request, cfg, retryLimit = getVideoRetryLimit(
         finalError.retryLimit = retryLimit;
         throw finalError;
       }
-      lastServerError = err;
+      if (err?.status != null) lastServerError = err;
       retryCount += 1;
-      const delay = getVideoRetryDelay(retryCount);
-      setVideoLoading(true, `自动重试 ${retryCount}/${retryLimit}`, `${friendlyError(err)}；${delay / 1000} 秒后重试`);
+      setVideoLoading(true, `自动重试 ${retryCount}/${retryLimit}`, `${friendlyError(err)}；3 秒后重试`);
       updateVideoRetryStatus(retryCount, retryLimit);
-      await waitForVideoRetry(delay);
+      await waitForVideoRetry(VIDEO_RETRY_DELAY_MS);
     }
   }
 }
